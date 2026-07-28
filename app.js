@@ -120,6 +120,7 @@
   var ICON_ALERT = '<circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>';
   var ICON_CAL = '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>';
   var ICON_MOVE = '<path d="M5 12h14M12 5l7 7-7 7"/>';
+  var ICON_PHONE = '<path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18A2 2 0 014.11 2h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/>';
 
   function getService(id) {
     /* Ищем среди всех услуг, включая выключенные: у старых записей услуга
@@ -1110,10 +1111,15 @@
       return;
     }
 
-    /* Группируем по дням — в режиме недели иначе непонятно, где кончается день */
+    /* Группируем по дням — в режиме недели иначе непонятно, где кончается день.
+       Но если день уже выбран в календаре, его название стоит в заголовке
+       над списком — вторая подпись была бы дублем. */
+    var singleDay = state.adminRange === 'today' ||
+      (state.adminRange === 'month' && state.calSelectedDay !== null);
+
     var lastDay = null;
     items.forEach(function (a) {
-      if (a.day !== lastDay) {
+      if (!singleDay && a.day !== lastDay) {
         lastDay = a.day;
         var label = a.day === 0 ? t('today_label')
           : a.day === 1 ? t('tomorrow_label')
@@ -1168,8 +1174,11 @@
     var row2 = el('div', 'appt__row');
     row2.appendChild(el('span', 'appt__srv', srvName(srv)));
     if (srv) row2.appendChild(el('span', 'appt__price', money(srv.price)));
-    var phone = el('a', 'appt__phone', a.phone);
+    /* Телефон — рабочая ссылка «позвонить»: на телефоне это основной
+       способ связаться с клиенткой, поэтому с иконкой и заметный. */
+    var phone = el('a', 'appt__phone');
     phone.href = 'tel:' + a.phone.replace(/\s/g, '');
+    phone.innerHTML = svgIcon(ICON_PHONE, 14) + '<span>' + a.phone + '</span>';
     row2.appendChild(phone);
     main.appendChild(row2);
 
@@ -1741,10 +1750,8 @@
       panes[j].hidden = panes[j].dataset.pane !== id;
     }
 
-    /* Кнопка «Dodaj wizytę» относится только к записям */
-    var addBtn = $('#addBtn');
-    if (addBtn) addBtn.hidden = id !== 'appts';
-
+    /* Кнопка «Dodaj wizytę» теперь внутри раздела «Wizyty» и прячется
+       вместе с ним — отдельно управлять ею не нужно. */
     renderSectionContent();
   }
 
@@ -2410,8 +2417,10 @@
 
       row.appendChild(el('span', 'sch-row__day', t('weekdays_full')[wd]));
 
-      /* Сколько записей в этот день недели на горизонте — показываем сразу,
-         иначе мастер выключит день и молча похоронит визиты. */
+      /* Это ГЛОБАЛЬНАЯ настройка «как я работаю»: ограничивает, на какое
+         время вообще можно записаться. Существующие записи её не блокируют —
+         мастер ставит часы под себя. Число записей показываем только как
+         справку, отдельные визиты потом переносятся вручную. */
       var upcoming = state.appointments.filter(function (a) {
         if (a.hidden || a.status === 'cancelled' || a.day < 0) return false;
         if (a.day >= SALON.daysAhead) return false;
@@ -2423,12 +2432,6 @@
       cb.type = 'checkbox';
       cb.checked = !!rule.open;
       cb.addEventListener('change', function () {
-        /* Выключаем день с записями — предупреждаем и откатываем */
-        if (!cb.checked && upcoming.length) {
-          cb.checked = true;
-          showToast(tf('blk_conflict', { n: upcoming.length }));
-          return;
-        }
         rule.open = cb.checked;
         save('schedule');
         renderSchedule();
@@ -2438,10 +2441,10 @@
       toggle.appendChild(el('span', null, rule.open ? t('sch_open') : t('sch_closed')));
       row.appendChild(toggle);
 
-      /* Метка занятости у дня недели */
+      /* Справка: сколько визитов уже стоит в этот день недели */
       if (upcoming.length) {
         var mark = el('span', 'sch-row__busy');
-        mark.innerHTML = svgIcon(ICON_ALERT, 12) + '<span>' + tf('blk_day_busy', { n: upcoming.length }) + '</span>';
+        mark.innerHTML = svgIcon(ICON_CAL, 12) + '<span>' + tf('blk_day_busy', { n: upcoming.length }) + '</span>';
         mark.title = upcoming.map(function (a) { return formatDate(a.day) + ' ' + a.time; }).join(', ');
         row.appendChild(mark);
       }

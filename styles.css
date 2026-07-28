@@ -198,6 +198,9 @@ img, svg { max-width: 100%; }
 }
 .skip-link:focus { top: var(--sp-3); }
 
+/* Липкая кнопка записи — только на мобильном (включается в медиазапросе) */
+.cta-bar { display: none; }
+
 /* -----------------------------------------------------------------------------
    4. Кнопки — минимум 44px по высоте (touch target)
    -------------------------------------------------------------------------- */
@@ -265,9 +268,24 @@ img, svg { max-width: 100%; }
 .logo:hover { text-decoration: none; }
 .logo__mark { color: var(--primary); display: flex; }
 
-.nav { display: none; gap: var(--sp-4); }
-.nav a { color: var(--fg-soft); font-size: var(--fs-sm); font-weight: 500; }
-.nav a:hover { color: var(--primary); text-decoration: none; }
+/* Навигация была слишком бледной: --fg-soft на светлом фоне читался как
+   выключенный текст. Даём основной цвет, вес и подчёркивание при наведении. */
+.nav { display: none; gap: var(--sp-2); }
+.nav a {
+  position: relative;
+  padding: var(--sp-2) var(--sp-2);
+  color: var(--fg); font-size: var(--fs-sm); font-weight: 600;
+  border-radius: var(--r-sm);
+  transition: color var(--dur) var(--ease), background-color var(--dur) var(--ease);
+}
+.nav a::after {
+  content: ''; position: absolute; left: var(--sp-2); right: var(--sp-2); bottom: 4px;
+  height: 2px; background: var(--primary); border-radius: 2px;
+  transform: scaleX(0); transform-origin: left;
+  transition: transform var(--dur) var(--ease);
+}
+.nav a:hover { color: var(--primary); background: var(--muted); text-decoration: none; }
+.nav a:hover::after { transform: scaleX(1); }
 
 .header__tools { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
 
@@ -663,6 +681,49 @@ img, svg { max-width: 100%; }
 .appt__price { color: var(--primary); font-weight: 600; font-variant-numeric: tabular-nums; }
 .appt__actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
 
+/* -----------------------------------------------------------------------------
+   Карточка записи на телефоне: в одну строку всё сливалось в кашу.
+   Разводим по уровням — время+статус, имя, услуга+цена, телефон, кнопки.
+   -------------------------------------------------------------------------- */
+@media (max-width: 599px) {
+  .appt { gap: var(--sp-3); padding: var(--sp-3); }
+
+  /* Первая строка: время слева, статус справа */
+  .appt__row:first-child {
+    justify-content: space-between;
+    padding-bottom: var(--sp-2);
+    border-bottom: 1px solid var(--border);
+  }
+  .appt__time { font-size: var(--fs-lg); line-height: 1; }
+  /* Имя — на своей строке и крупнее: это главное в карточке */
+  .appt__client {
+    order: 3; flex-basis: 100%;
+    font-size: var(--fs-md); line-height: 1.3;
+  }
+  .appt__row:first-child .chip { order: 2; }
+
+  /* Вторая строка: услуга и цена в столбик, телефон отдельной строкой */
+  .appt__row:nth-child(2) { flex-direction: column; align-items: stretch; gap: var(--sp-1); }
+  .appt__srv { font-size: var(--fs-base); color: var(--fg); }
+  .appt__price { font-size: var(--fs-md); }
+  /* Телефон — заметная ссылка «позвонить», а не серая приписка сбоку */
+  .appt__phone {
+    margin-left: 0; margin-top: var(--sp-1);
+    display: inline-flex; align-items: center; gap: var(--sp-1);
+    min-height: 40px; padding: 0 var(--sp-2);
+    align-self: flex-start;
+    background: var(--muted); border-radius: var(--r-sm);
+    color: var(--fg); font-size: var(--fs-sm); text-decoration: none;
+  }
+
+  /* Кнопки: по две в ряд, чтобы не растягивать карточку в столбик */
+  .appt__actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); }
+  .appt__actions .btn { width: 100%; padding: 0 var(--sp-1); }
+  /* «Usuń dane» отдельно, во всю ширину — опасное действие не должно
+     стоять вплотную к обычным */
+  .appt__actions .btn--danger { grid-column: 1 / -1; }
+}
+
 /* Статус: цвет + иконка + текст, не только цвет */
 .chip {
   display: inline-flex; align-items: center; gap: var(--sp-1);
@@ -734,22 +795,34 @@ body.is-locked .footer { display: none; }
    12a-bis. Разделы админки: навигация и общие заголовки
    -------------------------------------------------------------------------- */
 
+/* Навигация разделов: выделена рамкой-подложкой, чтобы читалась как
+   переключатель, а не как строка серых ссылок. */
 .secnav {
   display: flex; gap: var(--sp-1); overflow-x: auto;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: var(--sp-5); padding-bottom: 2px;
+  background: var(--muted); border: 1px solid var(--border);
+  border-radius: var(--r-md); padding: var(--sp-1);
+  margin-bottom: var(--sp-5);
+  scrollbar-width: none;
 }
+.secnav::-webkit-scrollbar { display: none; }
 .secnav__btn {
   display: inline-flex; align-items: center; gap: var(--sp-2);
-  flex: 0 0 auto; min-height: 46px; padding: 0 var(--sp-3);
-  background: transparent; border: 0;
-  border-bottom: 2px solid transparent;
-  color: var(--muted-fg); font-family: var(--font-body);
-  font-size: var(--fs-sm); font-weight: 500; cursor: pointer; white-space: nowrap;
-  transition: color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+  flex: 0 0 auto; min-height: 44px; padding: 0 var(--sp-3);
+  background: transparent; border: 0; border-radius: var(--r-sm);
+  color: var(--fg-soft); font-family: var(--font-body);
+  font-size: var(--fs-sm); font-weight: 600; cursor: pointer; white-space: nowrap;
+  transition: color var(--dur) var(--ease), background-color var(--dur) var(--ease),
+              box-shadow var(--dur) var(--ease);
 }
-.secnav__btn:hover { color: var(--fg); }
-.secnav__btn[aria-pressed='true'] { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+.secnav__btn:hover { color: var(--fg); background: color-mix(in srgb, var(--card) 60%, transparent); }
+@supports not (background: color-mix(in srgb, red 50%, blue)) {
+  .secnav__btn:hover { background: var(--card); }
+}
+/* Активный раздел — белая «плашка» с тенью: видно сразу, где находишься */
+.secnav__btn[aria-pressed='true'] {
+  color: var(--primary); background: var(--card); box-shadow: var(--sh-sm);
+}
+.secnav__btn[aria-pressed='true'] svg { color: var(--primary); }
 
 .section-pane[hidden] { display: none; }
 
@@ -905,14 +978,14 @@ body.is-locked .footer { display: none; }
 .sch-row__day { font-weight: 600; min-width: 108px; text-transform: capitalize; }
 .sch-row__toggle { display: inline-flex; align-items: center; gap: var(--sp-2); cursor: pointer; }
 .sch-row__toggle input { width: 20px; height: 20px; accent-color: var(--primary); cursor: pointer; }
-/* Метка «в этот день недели есть записи» — рядом с галочкой */
+/* Справка «сколько визитов в этот день недели». Нейтральная, а не
+   предупреждение: график — глобальная настройка, записи её не блокируют. */
 .sch-row__busy {
   display: inline-flex; align-items: center; gap: 4px;
   padding: 2px var(--sp-2); border-radius: var(--r-full);
-  font-size: var(--fs-xs); font-weight: 600;
-  color: #B45309; background: #FFFBEB; border: 1px solid #FDE68A;
+  font-size: var(--fs-xs); font-weight: 500;
+  color: var(--muted-fg); background: var(--muted); border: 1px solid var(--border);
 }
-[data-theme='dark'] .sch-row__busy { color: #FCD34D; background: #2A2113; border-color: #59451B; }
 
 .sch-row__hours { display: flex; align-items: center; gap: var(--sp-2); margin-left: auto; flex-wrap: wrap; }
 .sch-row__hours label { font-size: var(--fs-xs); color: var(--muted-fg); }
@@ -1163,14 +1236,43 @@ body.is-locked .footer { display: none; }
   .theme__btn { width: 26px; height: 26px; }
   .lang { padding: 2px; }
   .lang__btn { min-width: 38px; min-height: 38px; font-size: 10px; }
-  /* Текст кнопок шапки скрываем — остаются иконки, метка в aria-label.
-     Исключение — ссылка на панель: в макете её ищут глазами, иконка
-     сетки сама по себе ни о чём не говорит. */
+  /* Текст кнопок шапки скрываем — остаются иконки, метка в aria-label */
   .header__tools .btn span { display: none; }
   .header__tools .btn { padding: 0 var(--sp-2); min-width: 44px; }
-  .header__tools .btn--panel span { display: inline; }
-  .header__tools .btn--panel { padding: 0 var(--sp-2); }
-  .header__tools .btn--panel svg { display: none; }
+
+  /* Шапка НЕ липкая на телефоне: 95px, висящие всю прокрутку, съедали
+     четверть экрана. Темы и язык — настройки «один раз», держать их
+     постоянно на виду незачем; кнопки навигации остаются в потоке. */
+  .header { position: static; }
+
+  /* До первой записи было ~800px скролла (почти три экрана). Сжимаем
+     всё, что стоит выше списка: отступы, заголовки, сводку. */
+  main.section { padding: var(--sp-4) 0; }
+  .pane__head { margin-bottom: var(--sp-3); gap: var(--sp-2); }
+  .pane__head h2 { font-size: var(--fs-md); }
+  .admin__bar { margin-bottom: var(--sp-3); gap: var(--sp-2); }
+  .stats { margin-bottom: var(--sp-3); }
+  .stats .stat { padding: var(--sp-2) var(--sp-3); }
+  /* Плашка «это макет» — важная, но не настолько, чтобы занимать экран */
+  .admin__bar .notice { font-size: var(--fs-xs); padding: var(--sp-2); }
+
+  /* Вместо шапки внизу висит одна кнопка записи — то, что реально нужно
+     под рукой на публичной странице. Только там, где она есть в разметке. */
+  .cta-bar {
+    display: block;
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: var(--z-sticky);
+    padding: var(--sp-2) var(--sp-3);
+    padding-bottom: calc(var(--sp-2) + env(safe-area-inset-bottom, 0px));
+    background: color-mix(in srgb, var(--bg) 92%, transparent);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid var(--border);
+  }
+  @supports not (background: color-mix(in srgb, red 50%, blue)) {
+    .cta-bar { background: var(--bg); }
+  }
+  .cta-bar .btn { width: 100%; }
+  /* Чтобы подвал не прятался под панелью */
+  body:has(.cta-bar) .footer { padding-bottom: calc(var(--sp-8) + env(safe-area-inset-bottom, 0px)); }
 }
 
 /* iPhone SE и подобные: на 375px четыре группы в шапке не встают в одну
