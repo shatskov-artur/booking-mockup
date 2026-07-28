@@ -1250,7 +1250,9 @@ body.is-locked .footer { display: none; }
   /* Компактная шапка. Правила лежат ЗДЕСЬ, а не в первом медиаблоке файла:
      там они идут раньше базовых .theme__btn/.lang__btn и проигрывают им
      при равной специфичности. */
-  .header__inner { min-height: 56px; gap: var(--sp-2) var(--sp-1); padding: var(--sp-2) 0; }
+  /* padding-block, а не padding: иначе обнулялся горизонтальный отступ
+     от .wrap и логотип прижимался к самому краю экрана. */
+  .header__inner { min-height: 56px; gap: var(--sp-2) var(--sp-1); padding-block: var(--sp-2); }
   .logo { font-size: var(--fs-base); }
   .themes { gap: 3px; }
   .theme__btn { width: 26px; height: 26px; }
@@ -1275,6 +1277,10 @@ body.is-locked .footer { display: none; }
   /* До первой записи было ~800px скролла (почти три экрана). Сжимаем
      всё, что стоит выше списка: отступы, заголовки, сводку. */
   main.section { padding: var(--sp-4) 0; }
+
+  /* Нижняя панель Safari/Chrome перекрывала последнюю карточку.
+     Добавляем запас под неё и под жест-бар. */
+  .footer { padding-bottom: calc(var(--sp-6) + env(safe-area-inset-bottom, 0px)); }
   .pane__head { margin-bottom: var(--sp-3); gap: var(--sp-2); }
   .pane__head h2 { font-size: var(--fs-md); }
   .admin__bar { margin-bottom: var(--sp-3); gap: var(--sp-2); }
