@@ -1163,9 +1163,14 @@ body.is-locked .footer { display: none; }
   .theme__btn { width: 26px; height: 26px; }
   .lang { padding: 2px; }
   .lang__btn { min-width: 38px; min-height: 38px; font-size: 10px; }
-  /* Текст кнопок шапки скрываем — остаются иконки, метка в aria-label */
+  /* Текст кнопок шапки скрываем — остаются иконки, метка в aria-label.
+     Исключение — ссылка на панель: в макете её ищут глазами, иконка
+     сетки сама по себе ни о чём не говорит. */
   .header__tools .btn span { display: none; }
   .header__tools .btn { padding: 0 var(--sp-2); min-width: 44px; }
+  .header__tools .btn--panel span { display: inline; }
+  .header__tools .btn--panel { padding: 0 var(--sp-2); }
+  .header__tools .btn--panel svg { display: none; }
 }
 
 /* iPhone SE и подобные: на 375px четыре группы в шапке не встают в одну
