@@ -531,7 +531,15 @@ img, svg { max-width: 100%; }
   display: grid; place-items: center; border-radius: var(--r-full);
   background: var(--accent-soft); color: var(--primary);
 }
-.done dl { max-width: 340px; margin: var(--sp-4) auto; text-align: left; }
+/* display:grid обязателен: без него dt/dd идут блоками друг под другом,
+   и на телефоне значение падало под подпись. */
+.done dl {
+  display: grid; grid-template-columns: 1fr auto;
+  gap: var(--sp-1) var(--sp-3);
+  max-width: 340px; margin: var(--sp-4) auto;
+  text-align: left; font-size: var(--fs-sm);
+}
+.done dl dd { margin: 0; text-align: right; font-weight: 500; }
 
 .notice {
   display: flex; gap: var(--sp-2); align-items: flex-start;
@@ -1173,6 +1181,14 @@ body.is-locked .footer { display: none; }
   .srv-row, .sch-row, .blk-row { flex-direction: column; align-items: stretch; }
   .srv-row__price, .sch-row__hours, .blk-row__actions { margin-left: 0; }
   .srv-row__actions .btn, .blk-row__actions .btn { flex: 1; }
+  /* Сводка «ключ — значение»: на узком экране двухколоночная сетка
+     разъезжается и значение падает под подпись. Ставим в строку. */
+  .summary dl, .modal__info dl {
+    grid-template-columns: 1fr auto;
+    gap: var(--sp-2) var(--sp-3);
+  }
+  .summary dd, .modal__info dd { text-align: right; }
+
   /* Селекты часов и чекбокс «Pracuję» — под палец, иначе не попасть */
   .sch-row__hours select { flex: 1; min-height: 44px; }
   .sch-row__toggle { min-height: 44px; }
