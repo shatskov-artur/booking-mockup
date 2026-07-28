@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="pl" data-theme="pink">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Studio Paznokci — rezerwacja online</title>
+  <meta name="description" content="Manicure i pedicure. Zarezerwuj termin online.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<a class="skip-link" href="#main" data-i18n="skip_link">Przejdź do treści</a>
+
+<!-- ========================= ШАПКА ========================= -->
+<header class="header">
+  <div class="wrap header__inner">
+    <a class="logo" href="index.html">
+      <span class="logo__mark" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 21c4.97 0 9-4.03 9-9 0-4.97-4.03-9-9-9-1.66 0-3 1.34-3 3v12c0 1.66 1.34 3 3 3z"/>
+          <path d="M9 8h12M9 13h12"/>
+        </svg>
+      </span>
+      <span data-salon="brandName">Studio Paznokci</span>
+    </a>
+
+    <nav class="nav" aria-label="Menu">
+      <a href="#services" data-i18n="nav_services">Usługi</a>
+      <a href="#gallery" data-i18n="nav_gallery">Nasze prace</a>
+      <a href="#booking" data-i18n="nav_booking">Rezerwacja</a>
+      <a href="#contact" data-i18n="nav_contact">Kontakt</a>
+    </nav>
+
+    <div class="header__tools">
+      <div class="themes" role="group" data-i18n-aria-label="aria_theme" id="themeSwitch"></div>
+      <div class="lang" role="group" data-i18n-aria-label="aria_lang" id="langSwitch"></div>
+      <a class="btn btn--primary btn--sm header__cta" href="#booking" data-i18n-aria-label="nav_book_cta" data-i18n="nav_book_cta">Zarezerwuj termin</a>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- ========================= HERO ========================= -->
+  <section class="hero">
+    <div class="wrap hero__inner">
+      <div>
+        <span class="badge">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 3l2.09 6.26L20.5 9.5l-5 4.1 1.8 6.4L12 16.6l-5.3 3.4 1.8-6.4-5-4.1 6.41-.24L12 3z"/>
+          </svg>
+          <span data-i18n="hero_badge">Manicure i pedicure</span>
+        </span>
+
+        <h1 data-i18n="hero_title">Piękne paznokcie bez pośpiechu</h1>
+        <p class="hero__lead" data-i18n="hero_subtitle">Indywidualne podejście, sterylne narzędzia i trwały efekt.</p>
+
+        <div class="hero__actions">
+          <a class="btn btn--primary" href="#booking" data-i18n="hero_cta">Zarezerwuj termin</a>
+          <a class="btn btn--ghost" href="#services" data-i18n="hero_cta_secondary">Zobacz cennik</a>
+        </div>
+
+        <ul class="hero__points">
+          <li>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+            <span data-i18n="hero_point_1">Sterylne narzędzia</span>
+          </li>
+          <li>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+            <span data-i18n="hero_point_2">Dogodne godziny</span>
+          </li>
+          <li>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+            <span data-i18n="hero_point_3">Trwałość do 4 tygodni</span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Декоративная плитка вместо фото мастера -->
+      <div class="hero__art" id="heroArt" aria-hidden="true"></div>
+    </div>
+  </section>
+
+  <!-- ========================= УСЛУГИ ========================= -->
+  <section class="section" id="services">
+    <div class="wrap">
+      <div class="section__head">
+        <h2 data-i18n="services_title">Usługi i ceny</h2>
+        <p data-i18n="services_subtitle">Ceny orientacyjne.</p>
+      </div>
+      <div class="cards" id="servicesGrid"></div>
+    </div>
+  </section>
+
+  <!-- ========================= ГАЛЕРЕЯ ========================= -->
+  <section class="section section--alt" id="gallery">
+    <div class="wrap">
+      <div class="section__head">
+        <h2 data-i18n="gallery_title">Nasze prace</h2>
+        <p data-i18n="gallery_subtitle">Kilka przykładów stylizacji.</p>
+      </div>
+      <div class="gallery" id="galleryGrid"></div>
+    </div>
+  </section>
+
+  <!-- ========================= ЗАПИСЬ ========================= -->
+  <section class="section" id="booking">
+    <div class="wrap">
+      <div class="section__head">
+        <h2 data-i18n="booking_title">Zarezerwuj termin</h2>
+        <p data-i18n="booking_subtitle">Wybierz usługę, dogodny dzień i godzinę.</p>
+      </div>
+
+      <div class="booking">
+        <!-- Шаги -->
+        <form id="bookingForm" novalidate>
+          <!-- Шаг 1: услуга -->
+          <div class="step">
+            <div class="step__title">
+              <span class="step__num">1</span>
+              <h3 data-i18n="step_1">Usługa</h3>
+            </div>
+            <div class="picker" id="servicePicker" role="group" data-i18n-aria-label="booking_pick_service"></div>
+            <p class="error" id="errService">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+              <span data-i18n="err_service">Wybierz usługę.</span>
+            </p>
+          </div>
+
+          <!-- Шаг 2: дата и время -->
+          <div class="step" style="margin-top:var(--sp-3)">
+            <div class="step__title">
+              <span class="step__num">2</span>
+              <h3 data-i18n="step_2">Data i godzina</h3>
+            </div>
+            <div class="days" id="daysStrip" role="group" data-i18n-aria-label="booking_pick_date"></div>
+            <div class="slots" id="slotsGrid" role="group" data-i18n-aria-label="booking_pick_time"></div>
+            <p class="hint" id="slotsHint" data-i18n="booking_select_service_first">Najpierw wybierz usługę powyżej.</p>
+            <p class="error" id="errSlot">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+              <span data-i18n="err_slot">Wybierz dzień i godzinę.</span>
+            </p>
+          </div>
+
+          <!-- Шаг 3: контакты -->
+          <div class="step" style="margin-top:var(--sp-3)">
+            <div class="step__title">
+              <span class="step__num">3</span>
+              <h3 data-i18n="step_3">Dane kontaktowe</h3>
+            </div>
+
+            <div class="field">
+              <label for="fName">
+                <span data-i18n="label_name">Imię i nazwisko</span>
+                <span class="req">(<span data-i18n="required">wymagane</span>)</span>
+              </label>
+              <input type="text" id="fName" name="name" autocomplete="name" required>
+              <p class="error" id="errName">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+                <span data-i18n="err_name">Podaj imię i nazwisko.</span>
+              </p>
+            </div>
+
+            <div class="field">
+              <label for="fPhone">
+                <span data-i18n="label_phone">Numer telefonu</span>
+                <span class="req">(<span data-i18n="required">wymagane</span>)</span>
+              </label>
+              <input type="tel" id="fPhone" name="phone" autocomplete="tel" inputmode="tel" required>
+              <p class="error" id="errPhone">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+                <span data-i18n="err_phone">Podaj poprawny numer telefonu.</span>
+              </p>
+            </div>
+
+            <div class="field">
+              <label for="fNote" data-i18n="label_note">Uwagi (opcjonalnie)</label>
+              <textarea id="fNote" name="note"></textarea>
+            </div>
+
+            <!-- RODO: галочка НЕ предустановлена -->
+            <div class="consent">
+              <input type="checkbox" id="fConsent" name="consent" required>
+              <label for="fConsent">
+                <span data-i18n="consent_text">Wyrażam zgodę na przetwarzanie moich danych osobowych.</span>
+                <a href="#rodo" data-i18n="consent_link">Polityka prywatności</a>
+              </label>
+            </div>
+            <p class="error" id="errConsent">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+              <span data-i18n="err_consent">Zgoda jest wymagana.</span>
+            </p>
+
+            <button type="submit" class="btn btn--primary" id="submitBtn" data-i18n="submit">Potwierdź rezerwację</button>
+          </div>
+        </form>
+
+        <!-- Сводка -->
+        <aside class="booking__side">
+          <div class="step">
+            <div class="summary">
+              <h4 data-i18n="summary_title">Podsumowanie</h4>
+              <p class="summary__empty" id="summaryEmpty" data-i18n="summary_empty">Wybierz usługę i termin.</p>
+              <dl id="summaryList" hidden></dl>
+            </div>
+            <p class="notice">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+              <span data-i18n="confirm_mock_note">To makieta strony — rezerwacja nie została nigdzie zapisana.</span>
+            </p>
+          </div>
+        </aside>
+
+        <!-- Экран «записано» -->
+        <div class="step done" id="doneScreen" hidden>
+          <div class="done__icon" aria-hidden="true">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+          </div>
+          <h3 data-i18n="confirm_title">Rezerwacja przyjęta</h3>
+          <p data-i18n="confirm_text">Dziękujemy!</p>
+          <dl id="doneSummary"></dl>
+          <p class="notice" style="text-align:left">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+            <span data-i18n="confirm_mock_note">To makieta strony.</span>
+          </p>
+          <button type="button" class="btn btn--ghost" id="againBtn" style="margin-top:var(--sp-3)" data-i18n="confirm_again">Zarezerwuj kolejny termin</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================= КОНТАКТЫ ========================= -->
+  <section class="section section--alt" id="contact">
+    <div class="wrap">
+      <div class="section__head">
+        <h2 data-i18n="contact_title">Kontakt</h2>
+        <p data-i18n="contact_subtitle">Masz pytanie? Zadzwoń lub napisz.</p>
+      </div>
+
+      <div class="contact">
+        <ul class="contact__list">
+          <li>
+            <span class="contact__ico" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18A2 2 0 014.11 2h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/></svg>
+            </span>
+            <span>
+              <span class="contact__k" data-i18n="contact_phone">Telefon</span>
+              <a class="contact__v" id="contactPhone" href="#" data-salon="phone">+48 000 000 000</a>
+            </span>
+          </li>
+          <li>
+            <span class="contact__ico" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 6l-10 7L2 6"/></svg>
+            </span>
+            <span>
+              <span class="contact__k" data-i18n="contact_email">E-mail</span>
+              <a class="contact__v" id="contactEmail" href="#" data-salon="email">kontakt@example.pl</a>
+            </span>
+          </li>
+          <li>
+            <span class="contact__ico" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            </span>
+            <span>
+              <span class="contact__k" data-i18n="contact_address">Adres</span>
+              <span class="contact__v" data-salon="address">[ULICA I NUMER], [MIASTO]</span>
+            </span>
+          </li>
+          <li>
+            <span class="contact__ico" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            </span>
+            <span>
+              <span class="contact__k" data-i18n="contact_hours">Godziny otwarcia</span>
+              <span class="contact__v" data-i18n="contact_hours_value">pon.–sob. 9:00–19:00</span>
+            </span>
+          </li>
+          <li>
+            <span class="contact__ico" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><path d="M17.5 6.5h.01"/></svg>
+            </span>
+            <span>
+              <span class="contact__k" data-i18n="contact_instagram">Instagram</span>
+              <span class="contact__v" data-salon="instagram">@[NAZWA_PROFILU]</span>
+            </span>
+          </li>
+        </ul>
+
+        <div class="map">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          <span data-i18n="map_placeholder">Tutaj pojawi się mapa z lokalizacją</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================= RODO ========================= -->
+  <section class="section" id="rodo">
+    <div class="wrap">
+      <div class="section__head">
+        <h2 data-i18n="rodo_title">Polityka prywatności</h2>
+        <p data-i18n="rodo_placeholder_note">Dane w nawiasach kwadratowych zostaną uzupełnione.</p>
+      </div>
+
+      <div class="rodo">
+        <article class="rodo__item">
+          <h3 data-i18n="rodo_controller_title">Administrator danych</h3>
+          <p data-i18n="rodo_controller_text">—</p>
+        </article>
+        <article class="rodo__item">
+          <h3 data-i18n="rodo_purpose_title">Cel przetwarzania</h3>
+          <p data-i18n="rodo_purpose_text">—</p>
+        </article>
+        <article class="rodo__item">
+          <h3 data-i18n="rodo_retention_title">Okres przechowywania</h3>
+          <p data-i18n="rodo_retention_text">—</p>
+        </article>
+        <article class="rodo__item">
+          <h3 data-i18n="rodo_rights_title">Twoje prawa</h3>
+          <p data-i18n="rodo_rights_text">—</p>
+        </article>
+        <article class="rodo__item">
+          <h3 data-i18n="rodo_storage_title">Miejsce przechowywania</h3>
+          <p data-i18n="rodo_storage_text">—</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ========================= ПОДВАЛ ========================= -->
+<footer class="footer">
+  <div class="wrap footer__inner">
+    <p><span data-salon="brandName">Studio Paznokci</span> — <span data-i18n="footer_rights">Wszystkie prawa zastrzeżone.</span></p>
+    <p>
+      <span data-i18n="footer_mock">Makieta strony.</span>
+      &nbsp;·&nbsp;
+      <a href="admin.html" data-i18n="nav_admin">Panel</a>
+    </p>
+  </div>
+</footer>
+
+<script src="data.js"></script>
+<script src="i18n.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

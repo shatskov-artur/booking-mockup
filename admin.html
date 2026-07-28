@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="pl" data-theme="pink">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Panel rezerwacji</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<a class="skip-link" href="#main" data-i18n="skip_link">Przejdź do treści</a>
+
+<!-- ========================= ЭКРАН ВХОДА =========================
+     Бутафорская защита: пароль лежит в data.js и виден в исходнике.
+     Нужен только чтобы случайный человек по ссылке не попал в панель. -->
+<div class="lock" id="lockScreen" hidden>
+  <div class="lock__box">
+    <span class="lock__icon" aria-hidden="true">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+    </span>
+    <h1 data-i18n="lock_title">Panel dla właścicielki</h1>
+    <p data-i18n="lock_hint">Podaj hasło, aby zobaczyć panel rezerwacji.</p>
+
+    <div class="field">
+      <label for="lockPass" data-i18n="lock_pass">Hasło</label>
+      <input type="password" id="lockPass" autocomplete="current-password" inputmode="text">
+      <p class="error" id="lockErr">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <span data-i18n="lock_err">Nieprawidłowe hasło.</span>
+      </p>
+    </div>
+
+    <button type="button" class="btn btn--primary" id="lockBtn" data-i18n="lock_enter">Wejdź</button>
+    <a class="lock__back" href="index.html" data-i18n="lock_back">Wróć na stronę</a>
+    <p class="lock__demo" data-i18n="lock_demo">To makieta — hasło jest tylko po to, żeby przypadkowe osoby nie wchodziły do panelu.</p>
+  </div>
+</div>
+
+<!-- ========================= ШАПКА ========================= -->
+<header class="header">
+  <div class="wrap header__inner">
+    <a class="logo" href="index.html">
+      <span class="logo__mark" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 21c4.97 0 9-4.03 9-9 0-4.97-4.03-9-9-9-1.66 0-3 1.34-3 3v12c0 1.66 1.34 3 3 3z"/>
+          <path d="M9 8h12M9 13h12"/>
+        </svg>
+      </span>
+      <span data-salon="brandName">Studio Paznokci</span>
+    </a>
+
+    <div class="header__tools">
+      <div class="themes" role="group" data-i18n-aria-label="aria_theme" id="themeSwitch"></div>
+      <div class="lang" role="group" data-i18n-aria-label="aria_lang" id="langSwitch"></div>
+      <!-- data-i18n-aria-label обязателен: на мобильном текст скрыт CSS,
+           остаётся только иконка — без метки кнопка безымянная для скринридера -->
+      <a class="btn btn--ghost btn--sm" href="index.html" data-i18n-aria-label="admin_back">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        <span data-i18n="admin_back">Strona główna</span>
+      </a>
+      <button type="button" class="btn btn--ghost btn--sm" id="logoutBtn" data-i18n-aria-label="lock_logout">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        <span data-i18n="lock_logout">Wyloguj</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main id="main" class="section">
+  <div class="wrap">
+
+    <div class="admin__title">
+      <div class="section__head" style="margin-bottom:0">
+        <h1 data-i18n="admin_title">Panel rezerwacji</h1>
+        <p data-i18n="admin_subtitle">Lista wizyt. Potwierdź lub odwołaj rezerwację.</p>
+      </div>
+      <button type="button" class="btn btn--primary" id="addBtn">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        <span data-i18n="add_btn">Dodaj wizytę</span>
+      </button>
+    </div>
+
+    <!-- Разделы админки -->
+    <nav class="secnav" id="secNav" aria-label="Sekcje">
+      <button type="button" class="secnav__btn" data-section="appts" aria-pressed="true">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        <span data-i18n="sec_appts">Wizyty</span>
+      </button>
+      <button type="button" class="secnav__btn" data-section="gallery" aria-pressed="false">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+        <span data-i18n="sec_gallery">Galeria</span>
+      </button>
+      <button type="button" class="secnav__btn" data-section="services" aria-pressed="false">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+        <span data-i18n="sec_services">Usługi</span>
+      </button>
+      <button type="button" class="secnav__btn" data-section="schedule" aria-pressed="false">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        <span data-i18n="sec_schedule">Grafik</span>
+      </button>
+    </nav>
+
+    <!-- ============ РАЗДЕЛ: ЗАПИСИ ============ -->
+    <section class="section-pane" data-pane="appts">
+
+    <!-- Переключатель периода -->
+    <div class="admin__bar">
+      <div class="tabs" role="group" aria-label="Zakres">
+        <button type="button" class="tab" data-range="today" aria-pressed="true" data-i18n="admin_today">Dziś</button>
+        <button type="button" class="tab" data-range="week" aria-pressed="false" data-i18n="admin_week">Ten tydzień</button>
+        <button type="button" class="tab" data-range="month" aria-pressed="false" data-i18n="admin_month">Miesiąc</button>
+        <button type="button" class="tab" data-range="cancelled" aria-pressed="false" data-i18n="admin_cancelled">Odwołane</button>
+      </div>
+      <p class="notice" style="margin:0">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        <span data-i18n="admin_mock_note">To makieta — zmiany nie są zapisywane.</span>
+      </p>
+    </div>
+
+    <!-- Сводка -->
+    <div class="stats">
+      <div class="stat">
+        <span class="stat__k" data-i18n="admin_total">Wizyty</span>
+        <span class="stat__v" id="statTotal">0</span>
+      </div>
+      <div class="stat">
+        <span class="stat__k" data-i18n="admin_revenue">Przychód</span>
+        <span class="stat__v" id="statRevenue">0</span>
+      </div>
+      <div class="stat">
+        <span class="stat__k" data-i18n="admin_pending_count">Do potwierdzenia</span>
+        <span class="stat__v" id="statPending">0</span>
+      </div>
+    </div>
+
+    <!-- Аналитика отмен (только в режиме «Odwołane») -->
+    <section class="canc" id="cancPane" hidden aria-labelledby="cancTitle">
+      <div class="section__head" style="margin-bottom:var(--sp-4)">
+        <h2 id="cancTitle" style="font-size:var(--fs-lg)" data-i18n="canc_title">Odwołane wizyty</h2>
+        <p data-i18n="canc_subtitle">Kto odwołuje i jakie usługi są odwoływane najczęściej.</p>
+      </div>
+
+      <div class="canc__cols">
+        <div class="canc__card">
+          <h3 data-i18n="canc_by_client">Najczęściej odwołują</h3>
+          <ol class="rank" id="cancByClient"></ol>
+        </div>
+        <div class="canc__card">
+          <h3 data-i18n="canc_by_service">Najczęściej odwoływane usługi</h3>
+          <ol class="rank" id="cancByService"></ol>
+        </div>
+      </div>
+
+      <p class="hint" data-i18n="canc_hint">Dane pomagają zdecydować, komu warto brać zadatek.</p>
+    </section>
+
+    <!-- Календарь загруженности (только в режиме «Miesiąc») -->
+    <section class="cal" id="calendar" hidden aria-labelledby="calTitle">
+      <div class="cal__head">
+        <button type="button" class="cal__nav" id="calPrev" data-i18n-aria-label="cal_prev">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <h2 class="cal__title" id="calTitle">—</h2>
+        <button type="button" class="cal__nav" id="calNext" data-i18n-aria-label="cal_next">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+      </div>
+
+      <div class="cal__weekdays" id="calWeekdays" aria-hidden="true"></div>
+      <div class="cal__grid" id="calGrid" role="group" data-i18n-aria-label="cal_legend"></div>
+
+      <div class="cal__legend" id="calLegend"></div>
+      <p class="cal__hint" data-i18n="cal_drop_hint">Przeciągnij wizytę na inny dzień, aby ją przełożyć.</p>
+      <p class="cal__hint" data-i18n="cal_dblclick_hint">Kliknij dwukrotnie dzień, aby dodać wizytę.</p>
+    </section>
+
+    <!-- Список записей -->
+    <h3 class="day-group__title" id="listTitle" hidden>—</h3>
+    <div class="appts" id="apptList" aria-live="polite"></div>
+
+    </section>
+
+    <!-- ============ РАЗДЕЛ: ГАЛЕРЕЯ ============ -->
+    <section class="section-pane" data-pane="gallery" hidden>
+      <div class="pane__head">
+        <div>
+          <h2 data-i18n="gal_title">Galeria prac</h2>
+          <p data-i18n="gal_subtitle">Dodaj zdjęcia swoich prac.</p>
+          <p class="hint" style="margin:var(--sp-1) 0 0" data-i18n="gal_order_hint">Kolejność zmienisz strzałkami lub przeciąganiem.</p>
+        </div>
+        <div class="pane__actions">
+          <!-- input file скрыт, кликаем по кнопке-обёртке -->
+          <input type="file" id="galInput" accept="image/*" multiple hidden>
+          <button type="button" class="btn btn--primary" id="galUploadBtn">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+            <span data-i18n="gal_upload">Dodaj zdjęcia</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="admin__bar">
+        <div class="tabs" role="group" aria-label="Galeria">
+          <button type="button" class="tab gal-tab" data-galtab="active" aria-pressed="true" data-i18n="gal_active_tab">Widoczne</button>
+          <button type="button" class="tab gal-tab" data-galtab="archived" aria-pressed="false" data-i18n="gal_archived_tab">Archiwum</button>
+        </div>
+        <p class="hint" style="margin:0" id="galCount">—</p>
+      </div>
+
+      <p class="hint" data-i18n="gal_upload_hint">JPG lub PNG. Zdjęcia są automatycznie zmniejszane.</p>
+      <div class="gal-grid" id="galGrid"></div>
+    </section>
+
+    <!-- ============ РАЗДЕЛ: УСЛУГИ ============ -->
+    <section class="section-pane" data-pane="services" hidden>
+      <div class="pane__head">
+        <div>
+          <h2 data-i18n="srv_title">Usługi i ceny</h2>
+          <p data-i18n="srv_subtitle">Zmień ceny i czas trwania.</p>
+        </div>
+        <div class="pane__actions">
+          <button type="button" class="btn btn--primary" id="srvAddBtn">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            <span data-i18n="srv_add">Dodaj usługę</span>
+          </button>
+        </div>
+      </div>
+      <div class="srv-list" id="srvList"></div>
+    </section>
+
+    <!-- ============ РАЗДЕЛ: ГРАФИК ============ -->
+    <section class="section-pane" data-pane="schedule" hidden>
+      <div class="pane__head">
+        <div>
+          <h2 data-i18n="sch_title">Godziny pracy</h2>
+          <p data-i18n="sch_subtitle">Ustaw godziny dla każdego dnia tygodnia.</p>
+        </div>
+      </div>
+      <div class="sch-list" id="schList"></div>
+
+      <div class="pane__head" style="margin-top:var(--sp-6)">
+        <div>
+          <h2 data-i18n="blk_title">Przerwy i urlopy</h2>
+          <p data-i18n="blk_subtitle">Zablokuj cały dzień lub kilka godzin.</p>
+        </div>
+        <div class="pane__actions">
+          <button type="button" class="btn btn--primary" id="blkAddBtn">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            <span data-i18n="blk_add">Zablokuj czas</span>
+          </button>
+        </div>
+      </div>
+      <div class="blk-list" id="blkList"></div>
+    </section>
+
+  </div>
+</main>
+
+<!-- ========================= МОДАЛКА ПЕРЕНОСА ========================= -->
+<div class="modal" id="moveModal" hidden role="dialog" aria-modal="true" aria-labelledby="moveTitle">
+  <div class="modal__scrim" data-close></div>
+  <div class="modal__box">
+    <div class="modal__head">
+      <h2 id="moveTitle" data-i18n="move_title">Przełóż wizytę</h2>
+      <button type="button" class="modal__close" data-close data-i18n-aria-label="move_close">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <div class="modal__info">
+      <dl id="moveInfo"></dl>
+    </div>
+
+    <span class="modal__label" data-i18n="move_pick_day">Wybierz dzień</span>
+    <div class="days" id="moveDays" role="group" data-i18n-aria-label="move_pick_day"></div>
+
+    <span class="modal__label" data-i18n="move_pick_time">Wybierz godzinę</span>
+    <div class="slots" id="moveSlots" role="group" data-i18n-aria-label="move_pick_time"></div>
+    <p class="hint" id="moveHint"></p>
+    <p class="error" id="moveErr">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+      <span data-i18n="move_err_pick">Wybierz dzień i godzinę.</span>
+    </p>
+
+    <div class="modal__actions">
+      <button type="button" class="btn btn--ghost" data-close data-i18n="move_cancel">Anuluj</button>
+      <button type="button" class="btn btn--primary" id="moveSave" data-i18n="move_confirm">Przełóż wizytę</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========================= МОДАЛКА ДОБАВЛЕНИЯ ЗАПИСИ ========================= -->
+<div class="modal" id="addModal" hidden role="dialog" aria-modal="true" aria-labelledby="addTitle">
+  <div class="modal__scrim" data-add-close></div>
+  <div class="modal__box">
+    <div class="modal__head">
+      <h2 id="addTitle" data-i18n="add_title">Nowa wizyta</h2>
+      <button type="button" class="modal__close" data-add-close data-i18n-aria-label="move_close">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <p class="hint" style="margin-top:0" data-i18n="add_hint">Dla klientek, które zapisały się telefonicznie.</p>
+
+    <span class="modal__label" data-i18n="add_pick_service">Wybierz usługę</span>
+    <div class="picker" id="addServices" role="group" data-i18n-aria-label="add_pick_service"></div>
+    <p class="error" id="addErrService">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+      <span data-i18n="add_err_service">Wybierz usługę.</span>
+    </p>
+
+    <span class="modal__label" data-i18n="move_pick_day">Wybierz dzień</span>
+    <div class="days" id="addDays" role="group" data-i18n-aria-label="move_pick_day"></div>
+
+    <span class="modal__label" data-i18n="move_pick_time">Wybierz godzinę</span>
+    <div class="slots" id="addSlots" role="group" data-i18n-aria-label="move_pick_time"></div>
+    <p class="hint" id="addHint"></p>
+    <p class="error" id="addErrSlot">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+      <span data-i18n="add_err_slot">Wybierz dzień i godzinę.</span>
+    </p>
+
+    <div class="field" style="margin-top:var(--sp-3)">
+      <label for="addName" data-i18n="add_name">Imię i nazwisko klientki</label>
+      <input type="text" id="addName" autocomplete="off">
+      <p class="error" id="addErrName">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <span data-i18n="add_err_name">Podaj imię klientki.</span>
+      </p>
+    </div>
+
+    <div class="field">
+      <label for="addPhone" data-i18n="add_phone">Numer telefonu</label>
+      <input type="tel" id="addPhone" inputmode="tel" autocomplete="off">
+      <p class="error" id="addErrPhone">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <span data-i18n="add_err_phone">Podaj poprawny numer telefonu.</span>
+      </p>
+    </div>
+
+    <div class="modal__actions">
+      <button type="button" class="btn btn--ghost" data-add-close data-i18n="move_cancel">Anuluj</button>
+      <button type="button" class="btn btn--primary" id="addSave" data-i18n="add_save">Dodaj wizytę</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========================= МОДАЛКА НОВЫХ ФОТО ========================= -->
+<div class="modal" id="galModal" hidden role="dialog" aria-modal="true" aria-labelledby="galModalTitle">
+  <div class="modal__scrim" data-gal-close></div>
+  <div class="modal__box">
+    <div class="modal__head">
+      <h2 id="galModalTitle" data-i18n="gal_new_title">Nowe zdjęcia</h2>
+      <button type="button" class="modal__close" data-gal-close data-i18n-aria-label="move_close">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <p class="hint" style="margin-top:0" data-i18n="gal_new_hint">Nadaj nazwę i przypisz usługę.</p>
+
+    <div class="gal-new" id="galNewList"></div>
+
+    <div class="modal__actions">
+      <button type="button" class="btn btn--ghost" data-gal-close data-i18n="move_cancel">Anuluj</button>
+      <button type="button" class="btn btn--primary" id="galSave" data-i18n="gal_save">Dodaj do galerii</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========================= МОДАЛКА УСЛУГИ ========================= -->
+<div class="modal" id="srvModal" hidden role="dialog" aria-modal="true" aria-labelledby="srvModalTitle">
+  <div class="modal__scrim" data-srv-close></div>
+  <div class="modal__box">
+    <div class="modal__head">
+      <h2 id="srvModalTitle" data-i18n="srv_new_title">Nowa usługa</h2>
+      <button type="button" class="modal__close" data-srv-close data-i18n-aria-label="move_close">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <div class="field">
+      <label for="srvName" data-i18n="srv_name">Nazwa usługi</label>
+      <input type="text" id="srvName" autocomplete="off">
+      <p class="error" id="srvErrName">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <span data-i18n="srv_err_name">Podaj nazwę usługi.</span>
+      </p>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="srvPrice" data-i18n="srv_price">Cena (zł)</label>
+        <input type="number" id="srvPrice" min="1" step="5" inputmode="numeric">
+        <p class="error" id="srvErrPrice">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+          <span data-i18n="srv_err_price">Podaj cenę.</span>
+        </p>
+      </div>
+      <div class="field">
+        <label for="srvDur" data-i18n="srv_dur">Czas trwania (min)</label>
+        <input type="number" id="srvDur" min="30" step="30" inputmode="numeric">
+        <p class="error" id="srvErrDur">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+          <span data-i18n="srv_err_dur">Nieprawidłowy czas.</span>
+        </p>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="srvDesc" data-i18n="srv_desc">Opis (opcjonalnie)</label>
+      <textarea id="srvDesc"></textarea>
+    </div>
+
+    <div class="consent" style="margin-bottom:0">
+      <input type="checkbox" id="srvActive" checked>
+      <label for="srvActive" data-i18n="srv_active">Widoczna na stronie</label>
+    </div>
+
+    <div class="modal__actions">
+      <button type="button" class="btn btn--ghost" data-srv-close data-i18n="move_cancel">Anuluj</button>
+      <button type="button" class="btn btn--primary" id="srvSave" data-i18n="srv_save">Zapisz</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========================= МОДАЛКА БЛОКИРОВКИ ========================= -->
+<div class="modal" id="blkModal" hidden role="dialog" aria-modal="true" aria-labelledby="blkModalTitle">
+  <div class="modal__scrim" data-blk-close></div>
+  <div class="modal__box">
+    <div class="modal__head">
+      <h2 id="blkModalTitle" data-i18n="blk_new_title">Zablokuj czas</h2>
+      <button type="button" class="modal__close" data-blk-close data-i18n-aria-label="move_close">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <span class="modal__label" data-i18n="blk_day">Dzień</span>
+    <div class="days" id="blkDays" role="group" data-i18n-aria-label="blk_day"></div>
+    <p class="hint" id="blkNotice" aria-live="polite">—</p>
+
+    <div class="consent">
+      <input type="checkbox" id="blkWhole" checked>
+      <label for="blkWhole" data-i18n="blk_whole_day">Cały dzień</label>
+    </div>
+
+    <div class="field-row" id="blkRange" hidden>
+      <div class="field">
+        <label for="blkFrom" data-i18n="blk_from">Od godziny</label>
+        <select id="blkFrom"></select>
+      </div>
+      <div class="field">
+        <label for="blkTo" data-i18n="blk_to">Do godziny</label>
+        <select id="blkTo"></select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="blkReason" data-i18n="blk_reason">Powód</label>
+      <input type="text" id="blkReason" autocomplete="off">
+      <p class="error" id="blkErr">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <span id="blkErrText" data-i18n="blk_err_reason">Podaj powód.</span>
+      </p>
+    </div>
+
+    <div class="modal__actions">
+      <button type="button" class="btn btn--ghost" data-blk-close data-i18n="move_cancel">Anuluj</button>
+      <button type="button" class="btn btn--primary" id="blkSave" data-i18n="blk_save">Zablokuj</button>
+    </div>
+  </div>
+</div>
+
+<!-- Тост о переносе -->
+<div class="toast" id="toast" hidden role="status" aria-live="polite">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+  <span id="toastText"></span>
+</div>
+
+<footer class="footer">
+  <div class="wrap footer__inner">
+    <p><span data-salon="brandName">Studio Paznokci</span> — <span data-i18n="footer_rights">Wszystkie prawa zastrzeżone.</span></p>
+    <p data-i18n="footer_mock">Makieta strony — wersja demonstracyjna.</p>
+  </div>
+</footer>
+
+<script src="data.js"></script>
+<script src="i18n.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
