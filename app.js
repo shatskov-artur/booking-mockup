@@ -256,45 +256,57 @@
     }
   }
 
+  /* Переключатели живут в двух местах: в шапке (десктоп) и в подвале
+     (мобильный, где шапка не должна занимать первый экран). Заполняем оба. */
   function buildThemeSwitch() {
-    var box = $('#themeSwitch');
-    if (!box) return;
-    box.innerHTML = '';
-    THEMES.forEach(function (th) {
-      var b = el('button', 'theme__btn');
-      b.type = 'button';
-      b.dataset.theme = th.id;
-      b.style.background = th.swatch;
-      b.setAttribute('aria-pressed', String(th.id === state.theme));
-      b.addEventListener('click', function () { applyTheme(th.id); });
-      box.appendChild(b);
-    });
+    var boxes = document.querySelectorAll('.themes');
+    if (!boxes.length) return;
+
+    for (var i = 0; i < boxes.length; i++) {
+      (function (box) {
+        box.innerHTML = '';
+        THEMES.forEach(function (th) {
+          var b = el('button', 'theme__btn');
+          b.type = 'button';
+          b.dataset.theme = th.id;
+          b.style.background = th.swatch;
+          b.setAttribute('aria-pressed', String(th.id === state.theme));
+          b.addEventListener('click', function () { applyTheme(th.id); });
+          box.appendChild(b);
+        });
+      })(boxes[i]);
+    }
     retitleThemes();
   }
 
   /* Подписи тем зависят от языка — обновляем отдельно при смене языка */
   function retitleThemes() {
     THEMES.forEach(function (th) {
-      var b = document.querySelector('.theme__btn[data-theme="' + th.id + '"]');
-      if (b) {
-        b.title = t(th.key);
-        b.setAttribute('aria-label', t(th.key));
+      var btns = document.querySelectorAll('.theme__btn[data-theme="' + th.id + '"]');
+      for (var i = 0; i < btns.length; i++) {
+        btns[i].title = t(th.key);
+        btns[i].setAttribute('aria-label', t(th.key));
       }
     });
   }
 
   function buildLangSwitch() {
-    var box = $('#langSwitch');
-    if (!box) return;
-    box.innerHTML = '';
-    LANGS.forEach(function (lg) {
-      var b = el('button', 'lang__btn', lg.label);
-      b.type = 'button';
-      b.dataset.lang = lg.id;
-      b.setAttribute('aria-pressed', String(lg.id === state.lang));
-      b.addEventListener('click', function () { applyLang(lg.id); });
-      box.appendChild(b);
-    });
+    var boxes = document.querySelectorAll('.lang');
+    if (!boxes.length) return;
+
+    for (var i = 0; i < boxes.length; i++) {
+      (function (box) {
+        box.innerHTML = '';
+        LANGS.forEach(function (lg) {
+          var b = el('button', 'lang__btn', lg.label);
+          b.type = 'button';
+          b.dataset.lang = lg.id;
+          b.setAttribute('aria-pressed', String(lg.id === state.lang));
+          b.addEventListener('click', function () { applyLang(lg.id); });
+          box.appendChild(b);
+        });
+      })(boxes[i]);
+    }
   }
 
   function applyLang(id) {
@@ -2418,15 +2430,9 @@
       row.appendChild(el('span', 'sch-row__day', t('weekdays_full')[wd]));
 
       /* Это ГЛОБАЛЬНАЯ настройка «как я работаю»: ограничивает, на какое
-         время вообще можно записаться. Существующие записи её не блокируют —
-         мастер ставит часы под себя. Число записей показываем только как
-         справку, отдельные визиты потом переносятся вручную. */
-      var upcoming = state.appointments.filter(function (a) {
-        if (a.hidden || a.status === 'cancelled' || a.day < 0) return false;
-        if (a.day >= SALON.daysAhead) return false;
-        return dateFromOffset(a.day).getDay() === wd;
-      });
-
+         время вообще можно записаться. Существующие записи здесь ни при чём —
+         ни блокировок, ни меток о занятости. Мастер ставит часы под себя,
+         а конкретные визиты разбирает в разделе «Wizyty». */
       var toggle = el('label', 'sch-row__toggle');
       var cb = document.createElement('input');
       cb.type = 'checkbox';
@@ -2440,14 +2446,6 @@
       toggle.appendChild(cb);
       toggle.appendChild(el('span', null, rule.open ? t('sch_open') : t('sch_closed')));
       row.appendChild(toggle);
-
-      /* Справка: сколько визитов уже стоит в этот день недели */
-      if (upcoming.length) {
-        var mark = el('span', 'sch-row__busy');
-        mark.innerHTML = svgIcon(ICON_CAL, 12) + '<span>' + tf('blk_day_busy', { n: upcoming.length }) + '</span>';
-        mark.title = upcoming.map(function (a) { return formatDate(a.day) + ' ' + a.time; }).join(', ');
-        row.appendChild(mark);
-      }
 
       var hours = el('div', 'sch-row__hours');
       hours.appendChild(el('label', null, t('sch_from')));
@@ -2663,24 +2661,9 @@
       to = minutesToTime(tt * 60);
     }
 
-    /* Нельзя молча похоронить существующие записи — сначала их надо перенести */
-    var clash = state.appointments.filter(function (a) {
-      if (a.hidden || a.status === 'cancelled') return false;
-      if (a.day !== state.blkDay) return false;
-      if (whole) return true;
-      var srv = getService(a.serviceId);
-      var s = hhmmToMins(a.time);
-      var e = s + (srv ? srv.duration : 60);
-      return s < hhmmToMins(to) && e > hhmmToMins(from);
-    }).length;
-
-    if (clash) {
-      blkError('blk_conflict');
-      var span = $('#blkErrText');
-      if (span) span.textContent = tf('blk_conflict', { n: clash });
-      return;
-    }
-
+    /* Существующие записи блокировку НЕ отменяют: отпуск и перерывы —
+       решение мастера, а не проверка расписания. Она видит число визитов
+       на кнопке дня и разбирается с ними отдельно (перенос/отмена). */
     var maxId = 0;
     state.blocks.forEach(function (b) { if (b.id > maxId) maxId = b.id; });
     state.blocks.push({

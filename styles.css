@@ -597,6 +597,15 @@ img, svg { max-width: 100%; }
    -------------------------------------------------------------------------- */
 
 .footer { border-top: 1px solid var(--border); padding: var(--sp-5) 0; background: var(--bg-alt); }
+
+/* Темы и язык в подвале — показываются только на мобильном (см. медиазапрос),
+   где они убраны из шапки, чтобы не занимать первый экран. */
+.footer-tools {
+  display: none; align-items: center; justify-content: center;
+  flex-wrap: wrap; gap: var(--sp-3);
+  padding-bottom: var(--sp-4); margin-bottom: var(--sp-4);
+  border-bottom: 1px solid var(--border);
+}
 .footer__inner { display: flex; flex-wrap: wrap; gap: var(--sp-3); justify-content: space-between; align-items: center; }
 .footer p { margin: 0; color: var(--muted-fg); font-size: var(--fs-sm); }
 
@@ -640,15 +649,35 @@ img, svg { max-width: 100%; }
 .tab:hover { color: var(--fg); }
 .tab[aria-pressed='true'] { background: var(--card); color: var(--fg); box-shadow: var(--sh-sm); }
 
-/* На узких экранах три колонки ломают «2860 zł» на две строки —
-   до 599px показываем сводку в один столбец. */
-.stats { display: grid; gap: var(--sp-2); grid-template-columns: 1fr; margin-bottom: var(--sp-4); }
-.stats .stat { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-2); }
-.stats .stat__v { font-size: var(--fs-lg); }
+/* На телефоне сводка — одна компактная плашка в три колонки, а не три
+   карточки на пол-экрана: это три числа, они не должны вытеснять список. */
+.stats {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 0; margin-bottom: var(--sp-3);
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--r-md); overflow: hidden;
+}
+.stats .stat {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: var(--sp-2) var(--sp-1); text-align: center;
+  border: 0; border-radius: 0; background: transparent;
+  border-left: 1px solid var(--border);
+}
+.stats .stat:first-child { border-left: 0; }
+.stats .stat__k { font-size: 10px; letter-spacing: .02em; line-height: 1.2; }
+.stats .stat__v { font-size: var(--fs-md); }
 
 @media (min-width: 600px) {
-  .stats { gap: var(--sp-3); grid-template-columns: repeat(3, 1fr); }
-  .stats .stat { display: block; }
+  .stats {
+    gap: var(--sp-3); background: transparent; border: 0;
+    border-radius: 0; overflow: visible; margin-bottom: var(--sp-4);
+  }
+  .stats .stat {
+    display: block; text-align: left;
+    padding: var(--sp-3); border: 1px solid var(--border);
+    border-radius: var(--r-md); background: var(--card);
+  }
+  .stats .stat__k { font-size: var(--fs-xs); }
   .stats .stat__v { font-size: var(--fs-xl); }
 }
 .stat { background: var(--card); border: 1px solid var(--border); border-radius: var(--r-md); padding: var(--sp-3); }
@@ -978,15 +1007,6 @@ body.is-locked .footer { display: none; }
 .sch-row__day { font-weight: 600; min-width: 108px; text-transform: capitalize; }
 .sch-row__toggle { display: inline-flex; align-items: center; gap: var(--sp-2); cursor: pointer; }
 .sch-row__toggle input { width: 20px; height: 20px; accent-color: var(--primary); cursor: pointer; }
-/* Справка «сколько визитов в этот день недели». Нейтральная, а не
-   предупреждение: график — глобальная настройка, записи её не блокируют. */
-.sch-row__busy {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 2px var(--sp-2); border-radius: var(--r-full);
-  font-size: var(--fs-xs); font-weight: 500;
-  color: var(--muted-fg); background: var(--muted); border: 1px solid var(--border);
-}
-
 .sch-row__hours { display: flex; align-items: center; gap: var(--sp-2); margin-left: auto; flex-wrap: wrap; }
 .sch-row__hours label { font-size: var(--fs-xs); color: var(--muted-fg); }
 .sch-row__hours select { min-height: 40px; min-width: 84px; }
@@ -1244,6 +1264,13 @@ body.is-locked .footer { display: none; }
      четверть экрана. Темы и язык — настройки «один раз», держать их
      постоянно на виду незачем; кнопки навигации остаются в потоке. */
   .header { position: static; }
+
+  /* Темы и язык — настройки «зашёл один раз»: на телефоне они занимали
+     первый экран вместо содержимого. Переносим вниз страницы, в подвал.
+     На десктопе места хватает — там остаются в шапке. */
+  .header .themes,
+  .header .lang { display: none; }
+  .footer-tools { display: flex; }
 
   /* До первой записи было ~800px скролла (почти три экрана). Сжимаем
      всё, что стоит выше списка: отступы, заголовки, сводку. */
