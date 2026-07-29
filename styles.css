@@ -441,10 +441,23 @@ img, svg { max-width: 100%; }
   transition: border-color var(--dur) var(--ease), background-color var(--dur) var(--ease);
 }
 .picker__item:hover { border-color: var(--border-strong); background: var(--muted); }
-.picker__item[aria-pressed='true'] { border-color: var(--primary); background: var(--accent-soft); }
+/* aria-pressed — одиночный выбор в админке, --on — мультивыбор на сайте */
+.picker__item[aria-pressed='true'],
+.picker__item--on { border-color: var(--primary); background: var(--accent-soft); }
 .picker__item strong { display: block; font-weight: 600; }
 .picker__item span { color: var(--muted-fg); font-size: var(--fs-xs); }
 .picker__price { color: var(--primary); font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* Квадратик выбора: мультивыбор должен читаться как чекбокс, а не как
+   «одна из» — иначе неочевидно, что услуг можно взять несколько. */
+.picker__mark {
+  flex: 0 0 auto; display: flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border: 2px solid var(--border-strong);
+  border-radius: var(--r-sm); color: #fff;
+}
+/* .picker__item span задан muted-fg и перебивает color выше по специфичности,
+   поэтому белую галочку задаём здесь же, вместе с фоном. */
+.picker__item--on .picker__mark { background: var(--primary); border-color: var(--primary); color: #fff; }
 
 /* Полоса дней */
 .days { display: flex; gap: var(--sp-2); overflow-x: auto; padding-bottom: var(--sp-2); scrollbar-width: thin; }
@@ -457,6 +470,13 @@ img, svg { max-width: 100%; }
 .day:hover:not(:disabled) { border-color: var(--border-strong); background: var(--muted); }
 .day[aria-pressed='true'] { border-color: var(--primary); background: var(--accent-soft); }
 .day:disabled { opacity: .38; cursor: not-allowed; }
+/* День рабочий, но выбранный набор услуг в него не влезает. Штриховкой
+   отделяем от выходного: «занято» и «закрыто» — разные причины. */
+.day--full:disabled {
+  opacity: .5;
+  background-image: repeating-linear-gradient(135deg,
+    transparent 0 5px, var(--border) 5px 6px);
+}
 .day__wd { display: block; font-size: var(--fs-xs); color: var(--muted-fg); text-transform: uppercase; letter-spacing: .03em; }
 .day__num { display: block; font-size: var(--fs-md); font-weight: 600; font-variant-numeric: tabular-nums; }
 .day__mo { display: block; font-size: var(--fs-xs); color: var(--muted-fg); }
@@ -472,11 +492,15 @@ img, svg { max-width: 100%; }
   cursor: pointer; font-variant-numeric: tabular-nums;
   transition: border-color var(--dur) var(--ease), background-color var(--dur) var(--ease);
 }
-.slot:hover:not(:disabled) { border-color: var(--border-strong); background: var(--muted); }
+.slot:hover { border-color: var(--border-strong); background: var(--muted); }
 .slot[aria-pressed='true'] { border-color: var(--primary); background: var(--accent-soft); }
-.slot:disabled { opacity: .34; cursor: not-allowed; text-decoration: line-through; }
+/* Занятых слотов в сетке больше нет — они скрыты, а не перечёркнуты */
 
 .hint { color: var(--muted-fg); font-size: var(--fs-sm); margin: var(--sp-2) 0 0; }
+/* Подсказка перед элементом, а не после него */
+.hint--above { margin: 0 0 var(--sp-2); }
+/* Итог набора услуг — заметнее обычной подсказки, это цифры для решения */
+.hint--total { color: var(--fg); font-weight: 600; }
 
 /* Предупреждение: день, который нельзя заблокировать из-за записей */
 .hint--warn {
@@ -541,6 +565,12 @@ img, svg { max-width: 100%; }
 .summary dd { margin: 0; text-align: right; font-weight: 500; }
 .summary__total dd { color: var(--primary); font-weight: 600; font-variant-numeric: tabular-nums; }
 .summary__empty { color: var(--muted-fg); font-size: var(--fs-sm); margin: 0; }
+
+/* Список выбранных услуг внутри одной строки сводки: название слева,
+   цена справа — при двух услугах видно, из чего сложилась сумма. */
+.summary__srv { display: flex; justify-content: space-between; gap: var(--sp-2); text-align: left; }
+.summary__srv + .summary__srv { margin-top: 2px; }
+.summary__srv-price { color: var(--muted-fg); font-weight: 400; font-variant-numeric: tabular-nums; }
 
 /* Экран «записано» */
 .done { text-align: center; padding: var(--sp-6) var(--sp-3); }
@@ -703,11 +733,15 @@ img, svg { max-width: 100%; }
 .appt--cancelled { border-left-color: var(--muted-fg); opacity: .6; }
 
 .appt__row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); }
-.appt__time { font-family: var(--font-head); font-size: var(--fs-md); font-weight: 600; font-variant-numeric: tabular-nums; }
+/* nowrap: у комплексного визита здесь интервал «10:00–12:30», и разрыв
+   строки посреди него читался бы как два разных времени. */
+.appt__time { font-family: var(--font-head); font-size: var(--fs-md); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .appt__client { font-weight: 600; }
 .appt__srv { color: var(--muted-fg); font-size: var(--fs-sm); }
 .appt__phone { color: var(--muted-fg); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; margin-left: auto; }
 .appt__price { color: var(--primary); font-weight: 600; font-variant-numeric: tabular-nums; }
+/* Длительность комплексного визита — рядом с суммой, но приглушённо */
+.appt__dur { color: var(--muted-fg); font-size: var(--fs-xs); white-space: nowrap; }
 .appt__actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
 
 /* -----------------------------------------------------------------------------

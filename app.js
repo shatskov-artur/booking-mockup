@@ -11,7 +11,9 @@
   var state = {
     lang: 'pl',
     theme: 'pink',
-    serviceId: null,
+    /* Услуг может быть несколько: клиентка делает их за один визит,
+       длительность и цена складываются. */
+    serviceIds: [],
     dayOffset: null,
     time: null,
     adminRange: 'today',
@@ -24,8 +26,8 @@
     moveDay: null,
     moveTime: null,
     dragId: null,           // что тащим мышкой
-    /* ручное добавление записи */
-    addService: null,
+    /* ручное добавление записи (услуг может быть несколько, как на сайте) */
+    addServices: [],
     addDay: null,
     addTime: null,
     /* разделы админки */
@@ -54,6 +56,10 @@
     services: 'booking.services',
     schedule: 'booking.schedule',
     blocks: 'booking.blocks',
+    /* Записи, оформленные через публичную форму. Демонстрационные из data.js
+       не храним — иначе правки заглушек не подхватывались бы. Здесь только
+       то, что записала клиентка, чтобы это дошло до панели мастера. */
+    newAppts: 'booking.newAppts',
   };
 
   function save(what) {
@@ -82,6 +88,36 @@
       var v = load(k);
       if (v) state[k] = v;
     });
+    loadNewAppts();
+  }
+
+  /* --- записи с публичной формы -------------------------------------------
+     Форма и панель — разные страницы, поэтому запись надо передать через
+     localStorage, иначе мастер её не увидит. Заглушки из data.js не храним:
+     они демонстрационные и должны обновляться вместе с файлом.
+     ---------------------------------------------------------------------- */
+
+  function loadNewAppts() {
+    var saved = load('newAppts');
+    if (!saved) return;
+    /* Заглушки могли занять те же id — новые записи всегда идут после них */
+    var known = {};
+    state.appointments.forEach(function (a) { known[a.id] = true; });
+    saved.forEach(function (a) {
+      if (!known[a.id]) state.appointments.push(a);
+    });
+  }
+
+  /* Храним только настоящие записи (с сайта и внесённые мастером вручную),
+     они помечены isReal. Заглушки из data.js — нет. */
+  function saveNewAppts() {
+    var mine = state.appointments.filter(function (a) { return a.isReal; });
+    try {
+      localStorage.setItem(STORE_KEYS.newAppts, JSON.stringify(mine));
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
   /* --- утилиты ------------------------------------------------------------ */
@@ -96,6 +132,19 @@
     return String(t(key)).replace(/\{(\w+)\}/g, function (m, k) {
       return vars[k] !== undefined ? vars[k] : m;
     });
+  }
+
+  /* Форма слова при числе. У польского, русского и украинского правило одно:
+     1 (но не 11) / 2-4 (но не 12-14) / остальное. Просто дописать «услуг(и)»
+     нельзя — «Wybrano 3 usługę» звучит сломанно. */
+  function plural(n, key) {
+    var forms = t(key);
+    if (!forms || !forms.length) return '';
+    var mod100 = n % 100;
+    var mod10 = n % 10;
+    if (mod10 === 1 && mod100 !== 11) return forms[0];
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return forms[1];
+    return forms[2];
   }
 
   function el(tag, cls, text) {
@@ -136,6 +185,75 @@
     return state.services.filter(function (s) { return s.active !== false; });
   }
 
+  /* --- выбранные услуги в публичной форме --------------------------------
+     Порядок в serviceIds = порядок выбора: в нём же показываем их в итоге
+     и в этом же порядке мастер их делает.
+     -------------------------------------------------------------------- */
+
+  function pickedServices() {
+    return state.serviceIds.map(getService).filter(Boolean);
+  }
+
+  function isPicked(id) {
+    return state.serviceIds.indexOf(id) !== -1;
+  }
+
+  /* Суммарная длительность — под неё ищем непрерывное окно в графике */
+  function pickedDuration() {
+    return pickedServices().reduce(function (sum, s) { return sum + s.duration; }, 0);
+  }
+
+  function pickedPrice() {
+    return pickedServices().reduce(function (sum, s) { return sum + s.price; }, 0);
+  }
+
+  /* --- услуги конкретной записи -------------------------------------------
+     Запись может нести и одну услугу (serviceId — старый формат, в котором
+     заданы заглушки в data.js), и несколько (serviceIds). Читаем всегда через
+     эти функции, чтобы оба формата работали и заглушки не пришлось переписывать.
+     -------------------------------------------------------------------- */
+
+  function apptServiceIds(a) {
+    if (!a) return [];
+    if (a.serviceIds && a.serviceIds.length) return a.serviceIds;
+    return a.serviceId ? [a.serviceId] : [];
+  }
+
+  function apptServices(a) {
+    return apptServiceIds(a).map(getService).filter(Boolean);
+  }
+
+  /* Сумма к оплате за визит — по всем услугам записи */
+  function apptPrice(a) {
+    return apptServices(a).reduce(function (sum, s) { return sum + s.price; }, 0);
+  }
+
+  /* Сколько времени займёт визит целиком */
+  function apptDuration(a) {
+    var list = apptServices(a);
+    if (!list.length) return 60;   /* услуга удалена из прайса — считаем часом */
+    return list.reduce(function (sum, s) { return sum + s.duration; }, 0);
+  }
+
+  /* Время визита: у одной услуги просто начало, у нескольких — интервал
+     «10:00–12:30», чтобы мастер видела, до какого часа занята. */
+  function apptTimeRange(a) {
+    if (apptServices(a).length < 2) return a.time;
+    return a.time + '–' + minutesToTime(hhmmToMins(a.time) + apptDuration(a));
+  }
+
+  /* Названия услуг записи одной строкой: «Hybrydowy + Pedicure» */
+  function apptServiceNames(a) {
+    var list = apptServices(a);
+    if (!list.length) return '—';
+    return list.map(srvName).join(' + ');
+  }
+
+  /* Занимает ли запись эту услугу — для фильтра галереи и аналитики */
+  function apptHasService(a, id) {
+    return apptServiceIds(a).indexOf(id) !== -1;
+  }
+
   /* Название услуги: у встроенных берём из переводов по key,
      у добавленных мастером — введённое ею title. */
   function srvName(srv) {
@@ -150,6 +268,15 @@
   }
 
   function money(amount) { return amount + ' ' + t('currency'); }
+
+  /* Длительность словами. До часа — минуты, дальше «2 h 30 min»:
+     «330 min» за несколько услуг подряд читается плохо. */
+  function duration(mins) {
+    if (mins < 60) return mins + ' ' + t('srv_duration');
+    var h = Math.floor(mins / 60);
+    var m = mins % 60;
+    return h + ' ' + t('srv_hours') + (m ? ' ' + m + ' ' + t('srv_duration') : '');
+  }
 
   function dateFromOffset(offset) {
     var d = new Date();
@@ -218,28 +345,56 @@
     return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
   }
 
-  /* Занятость слотов детерминированная (от даты и времени, не Math.random) —
-     иначе при каждой перерисовке занятые часы «прыгали» бы.
-     Делим mins на шаг сетки: иначе (mins % 10) при шаге 30 всегда даёт 0
-     и день выходит либо целиком занятым, либо целиком свободным. */
-  function isBusy(offset, mins) {
-    var d = dateFromOffset(offset);
-    var slotIndex = Math.floor(mins / SALON.slotStep);
-    var seed = (d.getDate() * 7 + d.getMonth() * 3 + slotIndex * 5) % 11;
-    return seed < 4;   /* примерно треть слотов занята */
+  /* Пересекается ли интервал с существующими записями. exceptId — саму
+     переносимую запись не считаем занятой, иначе её нельзя было бы оставить
+     на своём времени.
+     Сравниваем интервалы, а не время начала: визит на две услуги занимает
+     несколько слотов, и запись «поверх» его середины ставить нельзя.
+     dur не задан — проверяем один шаг сетки. */
+  function isTakenByAppt(offset, time, exceptId, dur) {
+    var start = hhmmToMins(time);
+    var end = start + (dur || SALON.slotStep);
+
+    for (var i = 0; i < state.appointments.length; i++) {
+      var a = state.appointments[i];
+      if (a.hidden || a.status === 'cancelled') continue;
+      if (a.id === exceptId) continue;
+      if (a.day !== offset) continue;
+
+      var as = hhmmToMins(a.time);
+      var ae = as + apptDuration(a);
+      if (start < ae && end > as) return true;
+    }
+    return false;
   }
 
-  /* Слоты дня: шаг из SALON, отбрасываем те, где услуга не влезает до закрытия. */
-  function buildSlots(offset, duration) {
+  /* Свободные окна дня под визит длиной duration.
+     Занятые часы НЕ возвращаем вовсе — в интерфейсе их не должно быть видно:
+     перечёркнутая сетка только шумит, нужен выбор из того, что реально можно
+     взять. Отсюда же и полоса дней узнаёт, влезает ли набор в день.
+
+     Занятость берём из настоящих записей (state.appointments) — они одни для
+     сайта и панели. Отдельной синтетической занятости нет специально: она
+     вычиталась бы вторым слоем поверх записей, и на визит в 4 часа не
+     осталось бы ни одного окна.
+
+     duration — сумма всех выбранных услуг: проверяем интервал целиком,
+     иначе вторая услуга залезла бы на чужую запись.
+     exceptId — переносимую запись не считаем занятой, иначе её нельзя было бы
+     оставить на своём времени. */
+  function buildSlots(offset, duration, exceptId) {
     /* Часы берём из графика мастера, а не из константы — она правит их сама */
     var rule = dayRule(offset);
+    if (!rule.open) return [];
     var open = rule.from * 60;
     var close = rule.to * 60;
+    var except = (exceptId === undefined) ? null : exceptId;
+
     var out = [];
     for (var m = open; m + duration <= close; m += SALON.slotStep) {
-      /* Слот занят синтетически (демо) или попадает в блокировку */
-      var busy = isBusy(offset, m) || isBlockedRange(offset, m, duration);
-      out.push({ mins: m, label: minutesToTime(m), busy: busy });
+      if (isBlockedRange(offset, m, duration)) continue;
+      if (isTakenByAppt(offset, minutesToTime(m), except, duration)) continue;
+      out.push({ mins: m, label: minutesToTime(m) });
     }
     return out;
   }
@@ -393,13 +548,13 @@
 
       var foot = el('div', 'service__foot');
       var meta = el('span', 'service__meta');
-      meta.innerHTML = svgIcon(ICON_CLOCK, 15) + ' <span>' + srv.duration + ' ' + t('srv_duration') + '</span>';
+      meta.innerHTML = svgIcon(ICON_CLOCK, 15) + ' <span>' + duration(srv.duration) + '</span>';
       foot.appendChild(meta);
 
       var pick = el('button', 'btn btn--ghost btn--sm', t('srv_book'));
       pick.type = 'button';
       pick.addEventListener('click', function () {
-        selectService(srv.id);
+        addService(srv.id);
         var target = $('#booking');
         if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
       });
@@ -472,30 +627,60 @@
     box.innerHTML = '';
 
     activeServices().forEach(function (srv) {
-      var b = el('button', 'picker__item');
+      var picked = isPicked(srv.id);
+
+      /* Мультивыбор: чекбокс, а не радио — отсюда role и aria-checked.
+         Галочку рисуем сами, чтобы плитка осталась цельной кнопкой. */
+      var b = el('button', 'picker__item' + (picked ? ' picker__item--on' : ''));
       b.type = 'button';
       b.dataset.id = srv.id;
-      b.setAttribute('aria-pressed', String(state.serviceId === srv.id));
+      b.setAttribute('role', 'checkbox');
+      b.setAttribute('aria-checked', String(picked));
+
+      var mark = el('span', 'picker__mark');
+      mark.setAttribute('aria-hidden', 'true');
+      if (picked) mark.innerHTML = svgIcon(ICON_CHECK, 13);
+      b.appendChild(mark);
 
       var info = el('span');
       info.appendChild(el('strong', null, srvName(srv)));
-      info.appendChild(el('span', null, srv.duration + ' ' + t('srv_duration')));
+      info.appendChild(el('span', null, duration(srv.duration)));
       b.appendChild(info);
       b.appendChild(el('span', 'picker__price', money(srv.price)));
 
-      b.addEventListener('click', function () { selectService(srv.id); });
+      b.addEventListener('click', function () { toggleService(srv.id); });
       box.appendChild(b);
     });
   }
 
-  function selectService(id) {
-    state.serviceId = id;
-    /* Длительность изменилась — прежнее время может не влезать, сбрасываем */
+  /* Повторный клик снимает выбор — так же, как обычный чекбокс */
+  function toggleService(id) {
+    var i = state.serviceIds.indexOf(id);
+    if (i === -1) state.serviceIds.push(id);
+    else state.serviceIds.splice(i, 1);
+
+    /* Суммарная длительность изменилась — прежнее время может не влезать */
     state.time = null;
-    hideError('errService');
+
+    /* Заодно мог стать недоступным и сам день: добавив третью услугу,
+       клиентка требует 5 часов подряд, а в выбранный день их уже нет.
+       Оставить его выбранным нельзя — сетка была бы пустой без объяснения. */
+    var dur = pickedDuration();
+    if (state.dayOffset !== null && dur && !buildSlots(state.dayOffset, dur).length) {
+      state.dayOffset = null;
+    }
+
+    if (state.serviceIds.length) hideError('errService');
     renderServicePicker();
+    renderDays();
     renderSlots();
     renderSummary();
+  }
+
+  /* Клик по «Wybierz» в карточке услуги: добавляем, если ещё не выбрана,
+     но не снимаем — оттуда это выглядело бы как «кнопка не работает». */
+  function addService(id) {
+    if (!isPicked(id)) toggleService(id);
   }
 
   function renderDays() {
@@ -503,16 +688,27 @@
     if (!strip) return;
     strip.innerHTML = '';
 
+    /* Пока услуги не выбраны, длительности нет — все рабочие дни активны.
+       Как только выбраны, гасим дни, куда набор не влезает целиком:
+       при трёх услугах подряд (5 часов) таких дней большинство, и перебирать
+       их вслепую, натыкаясь на «нет свободных часов», клиентка не должна. */
+    var dur = pickedDuration();
+
     for (var i = 0; i < SALON.daysAhead; i++) {
       (function (offset) {
         var d = dateFromOffset(offset);
         var open = isWorkday(offset);
+        var fits = open && (!dur || buildSlots(offset, dur).length > 0);
 
         var b = el('button', 'day');
         b.type = 'button';
-        b.disabled = !open;
+        b.disabled = !fits;
+        if (open && !fits) b.classList.add('day--full');
         b.setAttribute('aria-pressed', String(state.dayOffset === offset));
-        b.setAttribute('aria-label', formatDate(offset, true));
+        /* Причину недоступности говорим словами — для скринридера цвет и
+           disabled сами по себе ничего не объясняют. */
+        b.setAttribute('aria-label', formatDate(offset, true) +
+          (open && !fits ? ', ' + t('booking_day_full') : ''));
 
         b.appendChild(el('span', 'day__wd', offset === 0 ? t('today_label') : t('weekdays')[d.getDay()]));
         b.appendChild(el('span', 'day__num', String(d.getDate())));
@@ -532,27 +728,58 @@
     }
   }
 
+  /* Есть ли хоть один день, куда влезает выбранный набор */
+  function anyDayFits() {
+    var dur = pickedDuration();
+    if (!dur) return true;
+    for (var i = 0; i < SALON.daysAhead; i++) {
+      if (isWorkday(i) && buildSlots(i, dur).length) return true;
+    }
+    return false;
+  }
+
+  /* Пояснение над полосой дней: сколько услуг выбрано, сколько это времени
+     и почему часть дней погашена. Без него погашенные дни выглядят как
+     «салон закрыт», хотя на самом деле не влезает выбранный набор. */
+  function renderPickedNote() {
+    var note = $('#pickedNote');
+    if (!note) return;
+
+    var picked = pickedServices();
+    /* Одна услуга ведёт себя как раньше — пояснять нечего */
+    if (picked.length < 2) { note.hidden = true; return; }
+
+    note.hidden = false;
+    note.textContent = tf('booking_picked_note', {
+      n: picked.length + ' ' + plural(picked.length, 'plural_service'),
+      time: duration(pickedDuration()),
+    });
+  }
+
   function renderSlots() {
     var grid = $('#slotsGrid');
     var hint = $('#slotsHint');
     if (!grid) return;
     grid.innerHTML = '';
 
-    var srv = getService(state.serviceId);
+    renderPickedNote();
 
-    if (!srv) {
+    if (!state.serviceIds.length) {
       if (hint) hint.textContent = t('booking_select_service_first');
       return;
     }
     if (state.dayOffset === null) {
-      if (hint) hint.textContent = t('booking_pick_date');
+      /* Ни одного подходящего дня во всём горизонте — предлагать «выберите
+         день» бессмысленно, выбирать нечего. Просим убрать услугу. */
+      if (hint) hint.textContent = anyDayFits() ? t('booking_pick_date') : t('booking_no_days');
       return;
     }
 
-    var slots = buildSlots(state.dayOffset, srv.duration);
-    var free = slots.filter(function (s) { return !s.busy; });
+    /* Окно ищем под сумму выбранных услуг: два маникюра подряд требуют
+       столько же непрерывного времени, сколько занимают вместе. */
+    var slots = buildSlots(state.dayOffset, pickedDuration());
 
-    if (!free.length) {
+    if (!slots.length) {
       if (hint) hint.textContent = t('booking_no_slots');
       return;
     }
@@ -561,7 +788,6 @@
     slots.forEach(function (s) {
       var b = el('button', 'slot', s.label);
       b.type = 'button';
-      b.disabled = s.busy;
       b.setAttribute('aria-pressed', String(state.time === s.label));
       b.addEventListener('click', function () {
         state.time = s.label;
@@ -578,10 +804,10 @@
     var empty = $('#summaryEmpty');
     if (!list || !empty) return;
 
-    var srv = getService(state.serviceId);
+    var picked = pickedServices();
     var hasSlot = state.dayOffset !== null && state.time;
 
-    if (!srv && !hasSlot) {
+    if (!picked.length && !hasSlot) {
       list.hidden = true;
       empty.hidden = false;
       return;
@@ -591,16 +817,36 @@
     list.hidden = false;
     list.innerHTML = '';
 
-    if (srv) {
-      addRow(list, t('summary_service'), srvName(srv));
-      addRow(list, t('summary_duration'), srv.duration + ' ' + t('srv_duration'));
+    if (picked.length) {
+      addServicesRow(list, picked);
+      /* Для одной услуги это её длительность, для нескольких — сумма */
+      var durKey = picked.length > 1 ? 'booking_total_time' : 'summary_duration';
+      addRow(list, t(durKey), duration(pickedDuration()));
     }
     if (hasSlot) {
       addRow(list, t('summary_datetime'), formatDate(state.dayOffset, true) + ', ' + state.time);
     }
-    if (srv) {
-      addRow(list, t('summary_price'), money(srv.price), 'summary__total');
+    if (picked.length) {
+      addRow(list, t('summary_price'), money(pickedPrice()), 'summary__total');
     }
+  }
+
+  /* Все услуги — одной строкой списка: каждая со своей ценой, иначе из общей
+     суммы непонятно, за что она получилась. Пустой <dt> у второй и следующих
+     строк оставлял бы дырку в колонке подписей. */
+  function addServicesRow(dl, picked) {
+    var dt = el('dt', null, t(picked.length > 1 ? 'summary_services' : 'summary_service'));
+    var dd = el('dd');
+
+    picked.forEach(function (srv) {
+      var line = el('span', 'summary__srv');
+      line.appendChild(el('span', null, srvName(srv)));
+      line.appendChild(el('span', 'summary__srv-price', money(srv.price)));
+      dd.appendChild(line);
+    });
+
+    dl.appendChild(dt);
+    dl.appendChild(dd);
   }
 
   function addRow(dl, key, val, cls) {
@@ -668,9 +914,8 @@
       ev.preventDefault();
 
       var firstBad = null;
-      var srv = getService(state.serviceId);
 
-      if (!srv) { showError('errService'); firstBad = firstBad || $('#servicePicker'); }
+      if (!state.serviceIds.length) { showError('errService'); firstBad = firstBad || $('#servicePicker'); }
       else hideError('errService');
 
       if (state.dayOffset === null || !state.time) { showError('errSlot'); firstBad = firstBad || $('#daysStrip'); }
@@ -692,13 +937,25 @@
         return;
       }
 
-      showDone(srv);
+      /* Пока заполняли контакты, окно могли занять — время выбиралось раньше */
+      if (isTakenByAppt(state.dayOffset, state.time, null, pickedDuration())) {
+        state.time = null;
+        showError('errSlot');
+        renderSlots();
+        renderSummary();
+        var slotsBox = $('#slotsGrid');
+        if (slotsBox) slotsBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+
+      submitBooking(name.value.trim(), phone.value.trim());
+      showDone();
     });
 
     var again = $('#againBtn');
     if (again) {
       again.addEventListener('click', function () {
-        state.serviceId = null;
+        state.serviceIds = [];
         state.dayOffset = null;
         state.time = null;
         form.reset();
@@ -715,18 +972,38 @@
     }
   }
 
+  /* Оформление записи с сайта. Бэкенда нет, поэтому кладём в localStorage —
+     оттуда её подхватит панель мастера. Статус pending: время клиентка
+     выбрала сама, но мастер должна его подтвердить. */
+  function submitBooking(client, phone) {
+    var added = {
+      id: nextApptId(),
+      day: state.dayOffset,
+      time: state.time,
+      serviceIds: state.serviceIds.slice(),
+      client: client,
+      phone: phone,
+      status: 'pending',
+      isReal: true,      /* не заглушка — храним, см. saveNewAppts */
+    };
+    state.appointments.push(added);
+    saveNewAppts();
+  }
+
   /* Экран «записано» вместо отправки — с явной пометкой, что это макет */
-  function showDone(srv) {
+  function showDone() {
     var form = $('#bookingForm');
     var done = $('#doneScreen');
     var side = document.querySelector('.booking__side');
     var dl = $('#doneSummary');
+    var picked = pickedServices();
 
     dl.innerHTML = '';
-    addRow(dl, t('summary_service'), srvName(srv));
+    addServicesRow(dl, picked);
     addRow(dl, t('summary_datetime'), formatDate(state.dayOffset, true) + ', ' + state.time);
-    addRow(dl, t('summary_duration'), srv.duration + ' ' + t('srv_duration'));
-    addRow(dl, t('summary_price'), money(srv.price), 'summary__total');
+    addRow(dl, t(picked.length > 1 ? 'booking_total_time' : 'summary_duration'),
+      duration(pickedDuration()));
+    addRow(dl, t('summary_price'), money(pickedPrice()), 'summary__total');
 
     form.hidden = true;
     if (side) side.hidden = true;
@@ -819,12 +1096,15 @@
   function rankCancellations(keyFn) {
     var map = {};
     cancelledAppts().forEach(function (a) {
-      var k = keyFn(a);
-      if (!k) return;
-      if (!map[k]) map[k] = { key: k, count: 0, lost: 0 };
-      map[k].count += 1;
-      var srv = getService(a.serviceId);
-      if (srv) map[k].lost += srv.price;
+      /* keyFn возвращает пары {key, lost}: отмена визита на две услуги должна
+         попасть в рейтинг обеих, но с ценой каждой — иначе общий убыток
+         удвоился бы. Для рейтинга по клиентке пара одна, с полной суммой. */
+      keyFn(a).forEach(function (row) {
+        if (!row.key) return;
+        if (!map[row.key]) map[row.key] = { key: row.key, count: 0, lost: 0 };
+        map[row.key].count += 1;
+        map[row.key].lost += row.lost;
+      });
     });
     var out = [];
     for (var k in map) if (map.hasOwnProperty(k)) out.push(map[k]);
@@ -839,10 +1119,15 @@
     if (state.adminRange !== 'cancelled') { pane.hidden = true; return; }
     pane.hidden = false;
 
-    var byClient = rankCancellations(function (a) { return a.client; });
+    /* По клиентке — одна строка на визит с полной суммой потерь */
+    var byClient = rankCancellations(function (a) {
+      return [{ key: a.client, lost: apptPrice(a) }];
+    });
+    /* По услугам — по строке на каждую услугу визита, со своей ценой */
     var byService = rankCancellations(function (a) {
-      var srv = getService(a.serviceId);
-      return srv ? srvName(srv) : null;
+      return apptServices(a).map(function (srv) {
+        return { key: srvName(srv), lost: srv.price };
+      });
     });
 
     /* Повторные отмены подсвечиваем: с них стоит брать депозит */
@@ -1081,10 +1366,7 @@
     /* Сводка сверху. В режиме отмен показываем потери, а не доход. */
     if (cancelledMode) {
       var lost = 0;
-      items.forEach(function (a) {
-        var s = getService(a.serviceId);
-        if (s) lost += s.price;
-      });
+      items.forEach(function (a) { lost += apptPrice(a); });
       /* Доля отмен от всех записей — главный показатель, за которым следить */
       var all = state.appointments.filter(function (a) { return !a.hidden; }).length;
       var rate = all ? Math.round((items.length / all) * 100) : 0;
@@ -1098,8 +1380,7 @@
     } else {
       var revenue = 0, pending = 0;
       items.forEach(function (a) {
-        var srv = getService(a.serviceId);
-        if (a.status !== 'cancelled' && srv) revenue += srv.price;
+        if (a.status !== 'cancelled') revenue += apptPrice(a);
         if (a.status === 'pending') pending += 1;
       });
       setLabel('#statTotal', 'admin_total');
@@ -1143,7 +1424,7 @@
   }
 
   function buildApptCard(a, cancelledMode) {
-    var srv = getService(a.serviceId);
+    var services = apptServices(a);
     var card = el('article', 'appt appt--' + a.status);
 
     /* Перетаскивание на день в календаре — доступно только в режиме месяца,
@@ -1167,7 +1448,9 @@
     var main = el('div');
 
     var row1 = el('div', 'appt__row');
-    row1.appendChild(el('span', 'appt__time', a.time));
+    /* При нескольких услугах показываем интервал «10:00–12:30»: мастеру важно
+       знать, до какого часа она занята, а не только когда клиентка придёт. */
+    row1.appendChild(el('span', 'appt__time', apptTimeRange(a)));
     row1.appendChild(el('span', 'appt__client', a.client));
     row1.appendChild(buildChip(a.status));
     main.appendChild(row1);
@@ -1184,8 +1467,13 @@
     }
 
     var row2 = el('div', 'appt__row');
-    row2.appendChild(el('span', 'appt__srv', srvName(srv)));
-    if (srv) row2.appendChild(el('span', 'appt__price', money(srv.price)));
+    /* Услуги перечисляем через «+»: сразу видно, что визит комплексный */
+    row2.appendChild(el('span', 'appt__srv', apptServiceNames(a)));
+    if (services.length) row2.appendChild(el('span', 'appt__price', money(apptPrice(a))));
+    /* У комплексного визита рядом с суммой — сколько он длится */
+    if (services.length > 1) {
+      row2.appendChild(el('span', 'appt__dur', duration(apptDuration(a))));
+    }
     /* Телефон — рабочая ссылка «позвонить»: на телефоне это основной
        способ связаться с клиенткой, поэтому с иконкой и заметный. */
     var phone = el('a', 'appt__phone');
@@ -1257,16 +1545,12 @@
     return null;
   }
 
-  /* Занято ли время реальной записью. exceptId — саму переносимую запись
-     не считаем занятой, иначе её нельзя было бы оставить на своём времени. */
-  function isTakenByAppt(offset, time, exceptId) {
-    for (var i = 0; i < state.appointments.length; i++) {
-      var a = state.appointments[i];
-      if (a.hidden || a.status === 'cancelled') continue;
-      if (a.id === exceptId) continue;
-      if (a.day === offset && a.time === time) return true;
-    }
-    return false;
+  /* id новой записи — максимальный существующий + 1, чтобы не столкнуться
+     с заглушками из data.js */
+  function nextApptId() {
+    var maxId = 0;
+    state.appointments.forEach(function (a) { if (a.id > maxId) maxId = a.id; });
+    return maxId + 1;
   }
 
   function initMoveModal() {
@@ -1296,12 +1580,16 @@
     state.moveDay = a.day;
     state.moveTime = a.time;
 
-    var srv = getService(a.serviceId);
+    var services = apptServices(a);
     var info = $('#moveInfo');
     info.innerHTML = '';
     addRow(info, t('move_client'), a.client);
-    addRow(info, t('move_service'), srvName(srv));
-    addRow(info, t('move_current'), formatDate(a.day, true) + ', ' + a.time);
+    addRow(info, t(services.length > 1 ? 'summary_services' : 'move_service'), apptServiceNames(a));
+    /* У комплексного визита показываем, сколько времени искать под перенос */
+    if (services.length > 1) {
+      addRow(info, t('booking_total_time'), duration(apptDuration(a)));
+    }
+    addRow(info, t('move_current'), formatDate(a.day, true) + ', ' + apptTimeRange(a));
 
     hideError('moveErr');
     renderMoveDays();
@@ -1366,19 +1654,15 @@
     var a = getAppt(state.moveId);
     if (!a || state.moveDay === null) { if (hint) hint.textContent = t('move_pick_day'); return; }
 
-    var srv = getService(a.serviceId);
-    var slots = buildSlots(state.moveDay, srv ? srv.duration : 60);
+    /* Окно ищем под весь визит: перенося запись на две услуги, нельзя
+       предлагать час, за которым сразу стоит чужая запись. */
+    /* Саму переносимую запись не считаем занятой — иначе её нельзя было бы
+       оставить на своём времени. Остальное buildSlots уже отбросил. */
+    var free = buildSlots(state.moveDay, apptDuration(a), state.moveId);
 
-    /* Слот занят, если там уже стоит другая запись или его закрывает
-       синтетическая занятость публичного календаря. */
-    var free = 0;
-    slots.forEach(function (s) {
-      var taken = isTakenByAppt(state.moveDay, s.label, state.moveId) || s.busy;
-      if (!taken) free += 1;
-
+    free.forEach(function (s) {
       var b = el('button', 'slot', s.label);
       b.type = 'button';
-      b.disabled = taken;
       b.setAttribute('aria-pressed', String(state.moveTime === s.label));
       b.addEventListener('click', function () {
         state.moveTime = s.label;
@@ -1388,7 +1672,7 @@
       grid.appendChild(b);
     });
 
-    if (hint) hint.textContent = free ? t('booking_slots_hint') : t('move_no_slots');
+    if (hint) hint.textContent = free.length ? t('booking_slots_hint') : t('move_no_slots');
   }
 
   function saveMove() {
@@ -1413,6 +1697,7 @@
     a.status = 'confirmed';
 
     var msg = tf('move_done', { date: formatDate(a.day, true), time: a.time });
+    saveNewAppts();
     closeMove();
     renderAdmin();
     showToast(msg);
@@ -1423,12 +1708,9 @@
     var a = getAppt(id);
     if (!a) return;
 
-    var srv = getService(a.serviceId);
-    var slots = buildSlots(offset, srv ? srv.duration : 60);
-    var slot = null;
-    for (var i = 0; i < slots.length; i++) {
-      if (!slots[i].busy && !isTakenByAppt(offset, slots[i].label, id)) { slot = slots[i]; break; }
-    }
+    /* Первое свободное окно дня, саму запись не считаем занятой */
+    var slots = buildSlots(offset, apptDuration(a), id);
+    var slot = slots.length ? slots[0] : null;
 
     /* Свободных часов нет — открываем модалку, пусть выберет вручную */
     if (!slot) {
@@ -1445,6 +1727,7 @@
     a.time = slot.label;
     a.status = 'confirmed';   /* перенос вручную = согласовано, см. saveMove */
     state.dragId = null;
+    saveNewAppts();
     renderAdmin();
     showToast(tf('move_done', { date: formatDate(offset, true), time: slot.label }));
   }
@@ -1490,7 +1773,7 @@
 
   /* dayOffset — если открыли кликом по дню календаря, день уже выбран */
   function openAdd(dayOffset) {
-    state.addService = null;
+    state.addServices = [];
     state.addDay = (dayOffset !== null && dayOffset !== undefined) ? dayOffset : null;
     state.addTime = null;
 
@@ -1515,9 +1798,24 @@
     var modal = $('#addModal');
     if (!modal) return;
     modal.hidden = true;
-    state.addService = null;
+    state.addServices = [];
     state.addDay = null;
     state.addTime = null;
+  }
+
+  /* Суммарные длительность и цена набора в модалке «Dodaj» */
+  function addDuration() {
+    return state.addServices.reduce(function (sum, id) {
+      var s = getService(id);
+      return sum + (s ? s.duration : 0);
+    }, 0);
+  }
+
+  function addPrice() {
+    return state.addServices.reduce(function (sum, id) {
+      var s = getService(id);
+      return sum + (s ? s.price : 0);
+    }, 0);
   }
 
   function renderAddServices() {
@@ -1526,26 +1824,57 @@
     box.innerHTML = '';
 
     activeServices().forEach(function (srv) {
-      var b = el('button', 'picker__item');
+      var on = state.addServices.indexOf(srv.id) !== -1;
+
+      /* Мультивыбор, как в публичной форме: клиентка часто просит сделать
+         маникюр и педикюр за один визит, вносить это двумя записями неудобно. */
+      var b = el('button', 'picker__item' + (on ? ' picker__item--on' : ''));
       b.type = 'button';
       b.dataset.id = srv.id;
-      b.setAttribute('aria-pressed', String(state.addService === srv.id));
+      b.setAttribute('role', 'checkbox');
+      b.setAttribute('aria-checked', String(on));
+
+      var mark = el('span', 'picker__mark');
+      mark.setAttribute('aria-hidden', 'true');
+      if (on) mark.innerHTML = svgIcon(ICON_CHECK, 13);
+      b.appendChild(mark);
 
       var infoBox = el('span');
       infoBox.appendChild(el('strong', null, srvName(srv)));
-      infoBox.appendChild(el('span', null, srv.duration + ' ' + t('srv_duration')));
+      infoBox.appendChild(el('span', null, duration(srv.duration)));
       b.appendChild(infoBox);
       b.appendChild(el('span', 'picker__price', money(srv.price)));
 
       b.addEventListener('click', function () {
-        state.addService = srv.id;
-        /* другая длительность — прежнее время может не влезть */
+        var i = state.addServices.indexOf(srv.id);
+        if (i === -1) state.addServices.push(srv.id);
+        else state.addServices.splice(i, 1);
+
+        /* другая суммарная длительность — прежнее время может не влезть */
         state.addTime = null;
-        hideError('addErrService');
+        if (state.addServices.length) hideError('addErrService');
         renderAddServices();
+        renderAddDays();
         renderAddSlots();
       });
       box.appendChild(b);
+    });
+
+    renderAddTotal();
+  }
+
+  /* Итог набора в модалке: сколько времени и сколько денег. Без него мастер
+     не знает, до какого часа занимает окно, пока не выберет время. */
+  function renderAddTotal() {
+    var box = $('#addTotal');
+    if (!box) return;
+
+    if (state.addServices.length < 2) { box.hidden = true; return; }
+    box.hidden = false;
+    box.textContent = tf('add_total_note', {
+      n: state.addServices.length + ' ' + plural(state.addServices.length, 'plural_service'),
+      time: duration(addDuration()),
+      price: money(addPrice()),
     });
   }
 
@@ -1554,16 +1883,23 @@
     if (!strip) return;
     strip.innerHTML = '';
 
+    /* Как и на сайте: гасим дни, куда набор целиком не влезает — иначе мастер
+       перебирала бы дни вслепую. */
+    var dur = addDuration();
+
     for (var i = 0; i < SALON.daysAhead; i++) {
       (function (offset) {
         var d = dateFromOffset(offset);
         var open = isWorkday(offset);
+        var fits = open && (!dur || buildSlots(offset, dur).length > 0);
 
         var b = el('button', 'day');
         b.type = 'button';
-        b.disabled = !open;
+        b.disabled = !fits;
+        if (open && !fits) b.classList.add('day--full');
         b.setAttribute('aria-pressed', String(state.addDay === offset));
-        b.setAttribute('aria-label', formatDate(offset, true));
+        b.setAttribute('aria-label', formatDate(offset, true) +
+          (open && !fits ? ', ' + t('booking_day_full') : ''));
 
         b.appendChild(el('span', 'day__wd', offset === 0 ? t('today_label') : t('weekdays')[d.getDay()]));
         b.appendChild(el('span', 'day__num', String(d.getDate())));
@@ -1582,27 +1918,23 @@
     }
   }
 
+
   function renderAddSlots() {
     var grid = $('#addSlots');
     var hint = $('#addHint');
     if (!grid) return;
     grid.innerHTML = '';
 
-    if (!state.addService) { if (hint) hint.textContent = t('booking_select_service_first'); return; }
+    if (!state.addServices.length) { if (hint) hint.textContent = t('booking_select_service_first'); return; }
     if (state.addDay === null) { if (hint) hint.textContent = t('move_pick_day'); return; }
 
-    var srv = getService(state.addService);
-    var slots = buildSlots(state.addDay, srv.duration);
-    var free = 0;
+    /* Как и в переносе: занятые часы скрываем, а не показываем неактивными.
+       Окно ищем под сумму выбранных услуг. */
+    var free = buildSlots(state.addDay, addDuration());
 
-    slots.forEach(function (s) {
-      /* Занято, если стоит другая запись или закрыто синтетической занятостью */
-      var taken = isTakenByAppt(state.addDay, s.label, null) || s.busy;
-      if (!taken) free += 1;
-
+    free.forEach(function (s) {
       var b = el('button', 'slot', s.label);
       b.type = 'button';
-      b.disabled = taken;
       b.setAttribute('aria-pressed', String(state.addTime === s.label));
       b.addEventListener('click', function () {
         state.addTime = s.label;
@@ -1612,7 +1944,7 @@
       grid.appendChild(b);
     });
 
-    if (hint) hint.textContent = free ? t('booking_slots_hint') : t('move_no_slots');
+    if (hint) hint.textContent = free.length ? t('booking_slots_hint') : t('move_no_slots');
   }
 
   function saveAdd() {
@@ -1620,7 +1952,7 @@
     var phone = $('#addPhone');
     var bad = null;
 
-    if (!state.addService) { showError('addErrService'); bad = bad || $('#addServices'); }
+    if (!state.addServices.length) { showError('addErrService'); bad = bad || $('#addServices'); }
     else hideError('addErrService');
 
     if (state.addDay === null || !state.addTime) { showError('addErrSlot'); bad = bad || $('#addDays'); }
@@ -1637,29 +1969,30 @@
       return;
     }
 
-    /* Двойная проверка: пока заполняли форму, слот мог занять кто-то ещё */
-    if (isTakenByAppt(state.addDay, state.addTime, null)) {
+    /* Двойная проверка: пока заполняли форму, окно мог занять кто-то ещё.
+       Проверяем весь интервал визита, а не только его начало. */
+    if (isTakenByAppt(state.addDay, state.addTime, null, addDuration())) {
       showToast(t('add_taken'));
       state.addTime = null;
       renderAddSlots();
       return;
     }
 
-    /* id — максимальный существующий + 1, чтобы не столкнуться с заглушками */
-    var maxId = 0;
-    state.appointments.forEach(function (a) { if (a.id > maxId) maxId = a.id; });
-
     var added = {
-      id: maxId + 1,
+      id: nextApptId(),
       day: state.addDay,
       time: state.addTime,
-      serviceId: state.addService,
+      serviceIds: state.addServices.slice(),
       client: name.value.trim(),
       phone: phone.value.trim(),
       /* Мастер вносит запись сама — значит время уже согласовано */
       status: 'confirmed',
+      /* Храним наравне с записями с сайта: пропадать при перезагрузке
+         внесённая вручную запись не должна. */
+      isReal: true,
     };
     state.appointments.push(added);
+    saveNewAppts();
 
     var msg = tf('add_done', { date: formatDate(added.day, true), time: added.time });
 
@@ -2296,7 +2629,7 @@
       del.addEventListener('click', function () {
         /* Предупреждаем, если на услугу уже есть записи */
         var used = state.appointments.filter(function (a) {
-          return !a.hidden && a.serviceId === srv.id;
+          return !a.hidden && apptHasService(a, srv.id);
         }).length;
         var msg = t('srv_del_confirm') + (used ? '\n\n' + tf('srv_in_use', { n: used }) : '');
         if (window.confirm(msg)) deleteSrv(srv.id);
@@ -2703,6 +3036,8 @@
     state.appointments.forEach(function (a) {
       if (a.id === id) a.status = status;
     });
+    /* Подтверждение записи с сайта не должно слетать при перезагрузке */
+    saveNewAppts();
     renderAdmin();
   }
 
@@ -2710,6 +3045,7 @@
     state.appointments.forEach(function (a) {
       if (a.id === id) a.hidden = true;
     });
+    saveNewAppts();
     renderAdmin();
   }
 
